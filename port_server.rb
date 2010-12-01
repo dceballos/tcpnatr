@@ -28,7 +28,7 @@ class PortServer
 
   def start
     server = TCPServer.new(port)
-		puts "Starting port server.  Waiting for sessions"
+    puts "Starting port server.  Waiting for sessions"
 	
     while (socket = server.accept)
       handle_accept(socket)
