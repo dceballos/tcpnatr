@@ -8,7 +8,7 @@ class Client
   end
 
   def start(sid="test", lport=0)
-    lport, rhost, rport = port_client.resolve(sid, 2009)
+    lport, rhost, rport = port_client.resolve(sid, lport)
 
     #rport += 1
 
@@ -23,9 +23,10 @@ class Client
         puts "connected"
       end
 
-      while(true)
-        socket.write "woohoo"
+      (0..50).each do |n|
+        socket.write "woohoo\n"
       end
+			socket.close
 
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
@@ -36,6 +37,6 @@ end
 
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
-  port_client = PortClient.new("blastmefy.net:2009")
-  Client.new(port_client).start("testy", 2009)
+  port_client = PortClient.new("blastmefy.net:2008")
+  Client.new(port_client).start("testy", 2008)
 end
