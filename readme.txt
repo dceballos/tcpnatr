@@ -1,4 +1,4 @@
-# linode terminal 1:
+# third party server terminal 1:
 ruby port_server.rb
 
 # linode terminal 2:
