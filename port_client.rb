@@ -20,4 +20,3 @@ if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
   puts PortClient.new("blastmefy.net:2008").resolve("test")
 end
-
