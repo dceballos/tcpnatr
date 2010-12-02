@@ -28,7 +28,11 @@ class CustomSocket < Socket
   def accept
     super[0]
   end
-  
+
+  def accept_nonblock
+    super[0]
+  end
+
   def addr
     Socket.unpack_sockaddr_in(getsockname)
   end
