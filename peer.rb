@@ -1,23 +1,21 @@
 require 'custom_socket'
 require 'port_client'
 
-class Client
+class Peer
   attr_reader(:port_client)
   def initialize(port_client)
     @port_client = port_client
   end
 
-  def start(sid="test", lport=0)
-    lport, rhost, rport = port_client.resolve(sid, lport)
-
-    puts("lport: #{lport} rhost: #{rhost} rport: #{rport}")
+  def start(sid="test",lport = 0)
+    lport, rhost, rport = port_client.resolve(sid,lport)
 
     socket = CustomSocket.new
     socket.bind(lport)
 
     begin
       Timeout::timeout(2) do
-        socket.connect(rhost, rport)
+        socket.connect(rhost,rport)   
         $stderr.puts "Connected to #{rhost}\n"
       end
 
@@ -45,5 +43,5 @@ end
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
   port_client = PortClient.new("blastmefy.net:2008")
-  Client.new(port_client).start("testy", 2008)
+  Peer.new(port_client).start("testy", 2008)
 end
