@@ -8,11 +8,23 @@ class PortClient
   def resolve(sid,port=0)
     socket = CustomSocket.new
     socket.bind(port)
+    trap_int(socket)
+
     socket.connect(@portserver_host,@portserver_port)
     lport  = socket.local_port
     socket.puts(sid)
     rhost, rport = socket.gets.chomp.split(":")
     return [lport,rhost,rport.to_i]
+  end
+
+  def trap_int(socket)
+    Signal.trap("INT") do
+      unless socket.nil?
+        puts "closing open socket"
+        socket.close
+      end
+      exit
+    end
   end
 end
 
