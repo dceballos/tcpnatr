@@ -1,6 +1,6 @@
 ### NAT traversal demo for routers with port preservation.
 
-#### third party server terminal:
+#### blastfemy.net terminal:
 `ruby port_server.rb`
 
 #### peer 1 terminal:
