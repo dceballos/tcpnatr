@@ -20,13 +20,24 @@ class Client
     begin
       Timeout::timeout(2) do
         socket.connect(rhost, rport)
-        puts "connected"
+        $stderr.puts "Connected to #{rhost}\n"
       end
 
-      (0..50).each do |n|
-        socket.write "woohoo\n"
+      r = Thread.new do
+        while true
+          read = socket.readline.chomp
+          $stderr.puts "#{rhost}: #{read}"
+        end
       end
-			socket.close
+
+      Thread.new do
+        while true
+          write = $stdin.gets
+          socket.puts write
+        end
+      end
+
+      r.join # block
 
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
