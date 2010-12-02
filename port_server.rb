@@ -9,6 +9,7 @@ class Session < Struct.new(:sid,:socket,:port)
   def port
     socket.peeraddr[1]
   end
+
   def ip
     socket.peeraddr[3]
   end

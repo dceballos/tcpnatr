@@ -10,7 +10,7 @@ class Server
   def start(sid="test",lport = 0)
     lport, rhost, rport = port_client.resolve(sid,lport)
 
-    syn_socket    = send_syn!(lport,rhost,rport)
+    syn_socket = send_syn!(lport,rhost,rport)
     
     $stderr.puts "Connected to #{rhost}\n"
 
@@ -26,10 +26,9 @@ class Server
         write = $stdin.gets
         syn_socket.puts write
       end
-    end
+    end.join
 
-    accept_socket = accept!(lport)
-
+    #accept_socket = accept!(lport)
     #rset, wset, _ = IO.select([accept_socket],[syn_socket])
     #$stderr.puts("rset: #{rset.inspect}")
     #$stderr.puts("wset: #{wset.inspect}")

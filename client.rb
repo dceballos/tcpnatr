@@ -23,7 +23,7 @@ class Client
         $stderr.puts "Connected to #{rhost}\n"
       end
 
-      r = Thread.new do
+      Thread.new do
         while true
           read = socket.readline.chomp
           $stderr.puts "#{rhost}: #{read}"
@@ -35,9 +35,7 @@ class Client
           write = $stdin.gets
           socket.puts write
         end
-      end
-
-      r.join # block
+      end.join
 
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
