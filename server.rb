@@ -28,10 +28,8 @@ class Server
 
     Thread.new do
       while true
-        read = socket.read(1)
+        read = socket.readline.chomp
         puts "read: #{read}"
-        socket.write("Y")
-        socket.flush
       end
     end
 
@@ -49,6 +47,6 @@ end
 
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
-  port_client = PortClient.new("blastmefy.net:2009")
-  Server.new(port_client).start("testy", 2009)
+  port_client = PortClient.new("blastmefy.net:2008")
+  Server.new(port_client).start("testy", 2008)
 end
