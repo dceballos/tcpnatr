@@ -14,7 +14,7 @@ class Peer
     socket.bind(lport)
 
     begin
-      Timeout::timeout(2) do
+      Timeout::timeout(1) do
         socket.connect(rhost,rport)   
         $stderr.puts "Connected to #{rhost}\n"
       end
