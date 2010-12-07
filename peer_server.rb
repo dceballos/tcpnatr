@@ -18,7 +18,7 @@ class PeerServer
 
     begin
       socket = server.accept
-      $stderr.puts "Connected to #{rhost}\n"
+      $stderr.puts "connected to #{rhost}\n"
 
       Thread.new do
         while true
@@ -41,11 +41,13 @@ class PeerServer
   def punch_nat(lport, rhost, rport)
     begin
       socket = CustomSocket.new
+
+      # set ttl low enough so it crosses our nat but won't reach remote peer.
       socket.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [2].pack("L"))
       socket.bind(lport)
 
       Timeout::timeout(0.3) do
-        puts "Punching hole in our NAT"
+        puts "punching hole through our NAT"
         socket.connect(rhost,rport)
       end
 
