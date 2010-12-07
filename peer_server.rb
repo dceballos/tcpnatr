@@ -14,7 +14,7 @@ class PeerServer
     server.bind(lport)
     server.listen(5)
 
-    punch_hole(lport, rhost, rport)
+    punch_nat(lport, rhost, rport)
 
     begin
       socket = server.accept
@@ -38,7 +38,7 @@ class PeerServer
     end
   end
 
-  def punch_hole(lport, rhost, rport)
+  def punch_nat(lport, rhost, rport)
     begin
       socket = CustomSocket.new
       socket.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [2].pack("L"))
