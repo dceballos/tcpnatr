@@ -4,7 +4,7 @@
 `ruby port_server.rb`
 
 #### peer 1 terminal:
-`ruby peer.rb`
+`ruby peer_server.rb`
 
 #### peer 2 terminal:
 `ruby peer.rb`
