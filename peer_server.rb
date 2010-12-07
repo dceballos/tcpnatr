@@ -28,8 +28,7 @@ class PeerServer
 
       Thread.new do
         while true
-          write = $stdin.gets
-          socket.puts write
+          socket.puts $stdin.gets
         end
       end.join
 
