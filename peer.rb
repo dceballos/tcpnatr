@@ -16,7 +16,7 @@ class Peer
     begin
       Timeout::timeout(1) do
         socket.connect(rhost,rport)   
-        $stderr.puts "Connected to #{rhost}\n"
+        $stderr.puts "connected to #{rhost}\n"
       end
 
       Thread.new do
@@ -33,10 +33,8 @@ class Peer
         end
       end.join
     
-    rescue Errno::EINVAL => e
-      puts e.message
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
-      puts e.message
+      puts "connecting ..."
       retry
     end
   end
