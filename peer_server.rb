@@ -14,7 +14,7 @@ class PeerServer
     server.bind(lport)
     server.listen(5)
 
-    send_syn(lport, rhost, rport)
+    punch_hole(lport, rhost, rport)
 
     begin
       socket = server.accept
@@ -38,14 +38,14 @@ class PeerServer
     end
   end
 
-  def send_syn(lport, rhost, rport)
+  def punch_hole(lport, rhost, rport)
     begin
       socket = CustomSocket.new
       socket.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [2].pack("L"))
       socket.bind(lport)
 
       Timeout::timeout(0.3) do
-        puts "Sending SYN"
+        puts "Punching hole in our NAT"
         socket.connect(rhost,rport)
       end
 
