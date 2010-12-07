@@ -10,4 +10,4 @@
 `ruby peer.rb`
 
 #### debug peer:  
-`sudo tcpdump -ln not port 22 and host other_peer_ip and not port 2008`
+`sudo tcpdump -ln not port 22 and host other_peer_ip`
