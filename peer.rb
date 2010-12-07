@@ -21,15 +21,13 @@ class Peer
 
       Thread.new do
         while true
-          read = socket.readline.chomp
-          $stderr.puts "#{rhost}: #{read}"
+          $stderr.puts "#{rhost}: #{socket.readline.chomp}"
         end
       end
 
       Thread.new do
         while true
-          write = $stdin.gets
-          socket.puts write
+          socket.puts $stdin.gets
         end
       end.join
     
