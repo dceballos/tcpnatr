@@ -32,7 +32,9 @@ class Peer
           socket.puts write
         end
       end.join
-
+    
+    rescue Errno::EINVAL => e
+      puts e.message
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
       retry
@@ -42,6 +44,6 @@ end
 
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
-  port_client = PortClient.new("blastmefy.net:2008")
+  port_client = PortClient.new("blastmefy.net:2000")
   Peer.new(port_client).start("testy", 2008)
 end

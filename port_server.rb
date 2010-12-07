@@ -25,14 +25,33 @@ class PortServer
   def initialize(port)
     @port     = port
     @sessions = {}
+    @polling  = false
   end
 
   def start
     server = TCPServer.new(port)
-    puts "Starting port server.  Waiting for sessions"
+    puts "starting port server.  waiting for sessions"
 	
     while (socket = server.accept)
       handle_accept(socket)
+      poll_open_sessions
+    end
+  end
+
+  def poll_open_sessions
+    return if @polling
+    Thread.new do
+      @polling = true
+      while !@sessions.empty?
+        @sessions.each_value do |s|
+          if s.socket.eof?
+            puts "closing #{s.sid}"
+            s.socket.close
+            @sessions.delete(s.sid)
+          end
+        end
+      end
+      @polling = false
     end
   end
 
@@ -62,5 +81,5 @@ class PortServer
 end
 
 if $0 == __FILE__
-  PortServer.new(2008).start
+  PortServer.new(2000).start
 end
