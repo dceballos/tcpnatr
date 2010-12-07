@@ -33,8 +33,6 @@ class PeerServer
         end
       end.join
 
-    rescue Errno::EINVAL => e
-      puts e.message
     rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
     end
@@ -46,7 +44,7 @@ class PeerServer
       socket.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [2].pack("L"))
       socket.bind(lport)
 
-      Timeout::timeout(1) do
+      Timeout::timeout(0.3) do
         puts "Sending SYN"
         socket.connect(rhost,rport)
       end
