@@ -20,16 +20,7 @@ class CustomSocket < Socket
     super(addr_remote)
   end
 
-  def connect_nonblock(ip,port)
-    super(Socket.pack_sockaddr_in(port, ip))
-  rescue Errno::EISCONN,Errno::EINPROGRESS
-  end
-  
   def accept
-    super[0]
-  end
-
-  def accept_nonblock
     super[0]
   end
 

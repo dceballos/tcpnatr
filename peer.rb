@@ -18,19 +18,7 @@ class Peer
         socket.connect(rhost,rport)   
         $stderr.puts "connected to #{rhost}\n"
       end
-
-      Thread.new do
-        while true
-          $stderr.puts "#{rhost}: #{socket.readline.chomp}"
-        end
-      end
-
-      Thread.new do
-        while true
-          socket.puts $stdin.gets
-        end
-      end.join
-    
+      socket
     rescue Timeout::Error, Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts "connecting ..."
       retry
@@ -38,8 +26,10 @@ class Peer
   end
 end
 
+=begin
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
-  port_client = PortClient.new("blastmefy.net:2000")
-  Peer.new(port_client).start("testy", 2008)
+  port_client = PortClient.new("blastmefy.net:2005")
+  Peer.new(port_client).start("test", 2008)
 end
+=end

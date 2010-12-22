@@ -40,6 +40,7 @@ class PortServer
 
   def poll_open_sessions
     return if @polling
+
     Thread.new do
       @polling = true
       while !@sessions.empty?

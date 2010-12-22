@@ -2,9 +2,9 @@ require 'custom_socket'
 require 'port_client'
 
 class PeerServer
-  attr_reader(:port_client)
+  attr_reader(:port_client, :free_sockets)
   def initialize(port_client)
-    @port_client = port_client
+    @port_client  = port_client
   end
 
   def start(sid="test",lport = 0)
@@ -19,19 +19,7 @@ class PeerServer
     begin
       socket = server.accept
       $stderr.puts "connected to #{rhost}\n"
-
-      Thread.new do
-        while true
-          $stderr.puts "#{rhost}: #{socket.readline.chomp}"
-        end
-      end
-
-      Thread.new do
-        while true
-          socket.puts $stdin.gets
-        end
-      end.join
-
+      socket
     rescue Errno::ECONNREFUSED, Errno::EADDRNOTAVAIL => e
       puts e.message
     end
@@ -55,9 +43,10 @@ class PeerServer
     end
   end
 end
-
+=begin
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
   port_client = PortClient.new("blastmefy.net:2000")
   PeerServer.new(port_client).start("testy", 2008)
 end
+=end
