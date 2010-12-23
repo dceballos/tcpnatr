@@ -1,4 +1,5 @@
 require 'peer'
+require 'timeout'
 
 class GatewayClient
   attr_reader(:port, :peer_socket, :client)
@@ -10,34 +11,44 @@ class GatewayClient
   def start
     $stderr.puts "staring stunt procedure\n"
     start_stunt
+    handle_accept
+  end
 
+  def handle_accept
     begin
       @client_socket = TCPSocket.new('localhost', port)
-      while (sockets = IO.select([@peer_socket, @client_socket]))
-        sockets = sockets[0]
-        sockets.each do |socket|                                                   
-          data = socket.readpartial(512)
-          if socket == @client_socket
-            $stderr.puts "reading from client socket, writing to peer"
-            @peer_socket.write data
-            @peer_socket.flush
-          else
-            $stderr.puts "reading from peer socket, writing to client"
-            @client_socket.write data
-            @client_socket.flush
+      timeout(10) do
+        while (sockets = IO.select([@peer_socket, @client_socket]))
+          sockets = sockets[0]
+          sockets.each do |socket|                                                   
+            data = socket.readpartial(512)
+            if socket == @client_socket
+              $stderr.puts "reading from client socket, writing to peer"
+              @peer_socket.write data
+              @peer_socket.flush
+            else
+              $stderr.puts "reading from peer socket, writing to client"
+              @client_socket.write data
+              @client_socket.flush
+            end
           end
         end
       end
-    rescue Exception => e
+    rescue IOError, Errno::ECONNRESET => e
       $stderr.puts e.message
-      @client_socket.close
       retry
     rescue EOFError
-      $stderr.puts "closing client socket"
+      $stderr.puts "eof. closing client socket"
+      @client_socket.close
+      @peer_socket.flush
+      retry
+    rescue Timeout::Error
+      $stderr.puts "timeout. closing client socket"
       @client_socket.close
       @peer_socket.flush
       retry
     end
+
   end
 
   def start_stunt
