@@ -7,23 +7,43 @@ class GatewayClient
     @port = port
   end
 
+  def get_client_socket
+    @client_socket = TCPSocket.new('localhost', port)
+  end
+
   def start
     $stderr.puts "staring stunt procedure\n"
     start_stunt
 
-    while (request = @stunt_socket.read)
-      client = TCPSocket.open("localhost", port)
-      client.write(request)
-      @stunt_socket.write(client.read)
-      @stunt_socket.flush
-      client.flush
-      client.close
+    begin
+      get_client_socket
+      while (sockets = IO.select([@stunt_socket, @client_socket]))
+        sockets = sockets[0]
+        sockets.each do |socket|                                                   
+          data = socket.readpartial(512)
+          if socket == @client_socket
+            $stderr.puts "reading from client socket, writing to peer"
+            @stunt_socket.write data
+            @stunt_socket.flush
+          else
+            $stderr.puts "reading from peer socket, writing to client"
+            @client_socket.write data
+            @client_socket.flush
+          end
+        end
+      end
+    rescue EOFError
+      if @client_socket.eof?
+        $stderr.puts "closing client socket"
+        @client_socket.close
+        retry
+      end
     end
   end
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @stunt_socket = PeerServer.new(port_client).start("testy", 2008)
+    @stunt_socket = Peer.new(port_client).start("testy", 2005)
   end
 end
 
