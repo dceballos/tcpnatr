@@ -7,6 +7,11 @@ class GatewayServer
     @port = port
   end
 
+  def start_stunt
+    port_client   = PortClient.new("blastmefy.net:2000")
+    @stunt_socket = PeerServer.new(port_client).start("testy", 2001)
+  end
+
   def start
     $stderr.puts "staring stunt procedure\n"
     start_stunt
@@ -15,21 +20,40 @@ class GatewayServer
     $stderr.puts "starting gateway server on port #{port}\n"
 
     while (socket = server.accept)
-      handle_accept(socket)
+      begin
+        $stderr.puts "handling accept"
+        handle_accept(socket)
+        $stderr.puts "done handling accept"
+      rescue StandardError => e
+        socket.close
+        puts e.message
+      end
     end
   end
 
-  def start_stunt
-    port_client   = PortClient.new("blastmefy.net:2000")
-    @stunt_socket = PeerServer.new(port_client).start("testy", 2008)
-  end
-
-  def handle_accept(socket)
-    @stunt_socket.write(socket.read)
-    socket.write(@stunt_socket.read)
-    @stunt_socket.flush
-    socket.flush
-    socket.close
+  def handle_accept(client_socket)
+    while true
+      begin
+        sockets, dummy, dummy = IO.select([client_socket, @stunt_socket])
+        sockets.each do |socket|
+          data = socket.readpartial(512)
+          if socket == client_socket
+            $stderr.puts "reading from client socket, writing to peer"
+            @stunt_socket.write data
+            @stunt_socket.flush
+          else
+            $stderr.puts "reading from peer socket, writing to client"
+            client_socket.write data
+            client_socket.flush
+          end
+        end 
+      rescue EOFError
+        $stderr.puts "EOFError. closing client socket"
+        client_socket.close
+        @stunt_socket.flush
+        break
+      end
+    end
   end
 end
 
