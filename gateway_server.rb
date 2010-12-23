@@ -24,7 +24,7 @@ class GatewayServer
         $stderr.puts "handling accept"
         handle_accept(socket)
         $stderr.puts "done handling accept"
-      rescue StandardError => e
+      rescue Exception => e
         socket.close
         puts e.message
       end
@@ -48,7 +48,7 @@ class GatewayServer
           end
         end 
       rescue EOFError
-        $stderr.puts "EOFError. closing client socket"
+        $stderr.puts "closing client socket"
         client_socket.close
         @stunt_socket.flush
         break
