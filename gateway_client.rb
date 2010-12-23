@@ -32,12 +32,15 @@ class GatewayClient
           end
         end
       end
+    rescue Exception => e
+      $stderr.puts e.message
+      @client_socket.close
+      retry
     rescue EOFError
-      if @client_socket.eof?
-        $stderr.puts "closing client socket"
-        @client_socket.close
-        retry
-      end
+      $stderr.puts "closing client socket"
+      @client_socket.close
+      @stunt_socket.flush
+      retry
     end
   end
 
