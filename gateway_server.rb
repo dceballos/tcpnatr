@@ -36,10 +36,12 @@ class GatewayServer
             if socket == @client_socket
               $stderr.puts "reading from client socket, writing to peer"
               @peer_socket.write data
+              $stderr.puts data
               @peer_socket.flush
             else
               $stderr.puts "reading from peer socket, writing to client"
               @client_socket.write data
+              $stderr.puts data
               @client_socket.flush
             end
           end
