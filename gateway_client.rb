@@ -3,9 +3,10 @@ require 'peer_server'
 require 'timeout'
 
 class GatewayClient
-  attr_reader(:port, :peer_socket, :client)
+  attr_reader(:port, :host, :peer_socket, :client)
 
-  def initialize(port)
+  def initialize(host, port)
+    @host = host
     @port = port
   end
 
@@ -27,7 +28,7 @@ class GatewayClient
 
   def handle_accept
     begin
-      @client_socket = TCPSocket.new('localhost', port)
+      @client_socket = TCPSocket.new(host, port)
       while (sockets = IO.select([@peer_socket, @client_socket]))
         timeout(10) do
           sockets = sockets[0]
@@ -36,10 +37,12 @@ class GatewayClient
             if socket == @client_socket
               $stderr.puts "reading from client socket, writing to peer"
               @peer_socket.write data
+              $stderr.puts data
               @peer_socket.flush
             else
               $stderr.puts "reading from peer socket, writing to client"
               @client_socket.write data
+              $stderr.puts data
               @client_socket.flush
             end
           end
@@ -65,5 +68,5 @@ class GatewayClient
 end
 
 if $0 == __FILE__
-  GatewayClient.new(3001).start
+  GatewayClient.new('localhost', 3001).start
 end
