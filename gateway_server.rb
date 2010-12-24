@@ -11,7 +11,7 @@ class GatewayServer
 
   def start_stunt
     port_client  = PortClient.new("blastmefy.net:2000")
-    @peer_socket = Peer.new(port_client).start("testy", 2005)
+    @peer_socket = PeerServer.new(port_client).start("testy", 2004)
   end
 
   def start
@@ -22,9 +22,7 @@ class GatewayServer
     $stderr.puts "starting gateway server on port #{port}\n"
 
     while (@client_socket = server.accept)
-      fork do
-        handle_accept
-      end
+      handle_accept
     end
   end
 
@@ -48,18 +46,12 @@ class GatewayServer
           end
         end
       end 
-    rescue Timeout::Error => e
+    rescue EOFError, Timeout::Error => e
       $stderr.puts e.message
       @peer_socket.flush
       @client_socket.flush
       @client_socket.close
-      retry
-    rescue Errno::ECONNRESET => e
-      $stderr.puts e.message
-      @peer_socket.flush
-      @client_socket.flush
-      retry
-    rescue EOFError => e
+    rescue IOError, Errno::ECONNRESET => e
       $stderr.puts e.message
       @peer_socket.flush
       @client_socket.close
