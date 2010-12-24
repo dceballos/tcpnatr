@@ -12,7 +12,7 @@ class GatewayClient
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @peer_socket  = Peer.new(port_client).start("testy", 2001)
+    @peer_socket  = PeerServer.new(port_client).start("testy", 2003)
   end
 
   def start
@@ -34,12 +34,10 @@ class GatewayClient
             if socket == @client_socket
               $stderr.puts "reading from client socket, writing to peer"
               @peer_socket.write data
-              $stderr.puts data
               @peer_socket.flush
             else
               $stderr.puts "reading from peer socket, writing to client"
               @client_socket.write data
-              $stderr.puts data
               @client_socket.flush
             end
           end
