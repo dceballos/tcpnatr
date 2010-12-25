@@ -44,14 +44,10 @@ class GatewayServer
           end
         end
       end 
-    rescue EOFError, Timeout::Error => e
+    rescue EOFError, IOError, Errno::ECONNRESET, Timeout::Error => e
       $stderr.puts e.message
       @peer_socket.flush
       @client_socket.flush
-      @client_socket.close
-    rescue IOError, Errno::ECONNRESET => e
-      $stderr.puts e.message
-      @peer_socket.flush
       @client_socket.close
     end
   end
