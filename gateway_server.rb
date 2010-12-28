@@ -11,7 +11,7 @@ class GatewayServer
 
   def start_stunt
     port_client  = PortClient.new("blastmefy.net:2000")
-    @peer_socket = Peer.new(port_client).start("testy", 2005)
+    @peer_socket = Peer.new(port_client).start("testy", 2003)
   end
 
   def start
@@ -22,9 +22,7 @@ class GatewayServer
     $stderr.puts "starting gateway server on port #{port}\n"
 
     while (@client_socket = server.accept)
-      fork do
-        handle_accept
-      end
+      handle_accept
     end
   end
 
@@ -38,10 +36,12 @@ class GatewayServer
               $stderr.puts "reading from client socket, writing to peer"
               @peer_socket.write data
               @peer_socket.flush
+              $stderr.puts data
             else
               $stderr.puts "reading from peer socket, writing to client"
               @client_socket.write data
               @client_socket.flush
+              $stderr.puts data
             end
           end
         end
@@ -54,6 +54,7 @@ class GatewayServer
     rescue IOError, Errno::ECONNRESET => e
       $stderr.puts e.message
       @peer_socket.flush
+      @client_socket.flush
       @client_socket.close
     end
   end
