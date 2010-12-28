@@ -19,7 +19,7 @@ class GatewayClient
     $stderr.puts "staring stunt procedure\n"
     start_stunt
 
-    while (IO.select([@peer_socket]))
+    while (true)
       handle_accept
     end
   end
