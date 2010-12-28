@@ -12,7 +12,7 @@ class GatewayClient
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @peer_socket  = Peer.new(port_client).start("testy", 2001)
+    @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
   end
 
   def start
@@ -53,6 +53,7 @@ class GatewayClient
     rescue IOError, Errno::ECONNRESET => e
       $stderr.puts e.message
       @peer_socket.flush
+      @client_socket.flush
       @client_socket.close
     end
   end
