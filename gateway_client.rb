@@ -30,23 +30,70 @@ class GatewayClient
     end
   end
 
+  class Message
+    def initialize size = nil
+      @size = size
+      @data = ""
+    end
+
+    def read_from_peer(socket)
+      if @size.nil?
+        @data << socket.read_nonblock(4096)
+        if @data.size >= 4
+          @size = @data[0..4].unpack("N")[0]
+          $stderr.puts("read size #@size from peer")
+        end
+      else
+        @data << socket.read_nonblock([4096,@size].min)
+      end
+    end
+    def read_complete?
+      @size == @data.size
+    end
+
+    def write_to_client(socket)
+      socket.write(@data[4..-1])
+      socket.flush
+    end
+
+    def read_from_client(socket)
+      @data = socket.read_nonblock(4096)
+      @size = @data.size
+    end
+    def write_to_peer(socket)
+      $stderr.puts("writing size #@size to peer")
+      socket.write([@size].pack("N"))
+      socket.write(@data)
+      socket.flush
+    end
+  end
+
+  def to_hex(str)
+    ret = ""
+    str.each_byte do |byte|
+      ret << byte.to_s(16)
+    end
+    ret.scan(/.{0,16}/).join("\n")
+  end
+
   def handle_accept
     begin
       @client_socket = TCPSocket.new(host, port)
       while (sockets = IO.select([@peer_socket, @client_socket]))
         timeout(1) do
           sockets[0].each do |socket|                                                   
-            data = socket.readpartial(4096)
             if socket == @client_socket
-              $stderr.puts "reading from client socket, writing to peer"
-              @peer_socket.write data
-              $stderr.puts data
-              @peer_socket.flush
+              @writemsg = Message.new
+              @writemsg.read_from_client(@client_socket)
+              @writemsg.write_to_peer(@client_socket)
             else
-              $stderr.puts "reading from peer socket, writing to client"
-              @client_socket.write data
-              $stderr.puts data
-              @client_socket.flush
+              @readmsg ||= Message.new
+              @readmsg.read_from_peer(@peer_socket)
+              if @readmsg.read_complete?
+                @readmsg.write_to_client(@client_socket)
+                @readmsg = nil
+                $stderr.puts "reading from peer socket, writing to client"
+              end
             end
           end
         end
@@ -62,24 +109,13 @@ class GatewayClient
 
   def clean_state
     $stderr.puts "handling sirgurg"
-    begin
-      $stderr.puts "before first select"
-      timeout(0.5) do
-        while (socket = IO.select([@peer_socket]))
-          data = socket[0][0].readpartial(4096)
-          $stderr.puts "FLUSHING #{data}"
-          @peer_socket.flush
-        end
+    if @readmsg
+      while !@readmsg.read_complete? && (socket = IO.select([@peer_socket]))
+        @readmsg.read_from_peer(@peer_socket)
       end
-    rescue Timeout::Error => e
-      $stderr.puts e.message
-    rescue EOFError, Errno::EPIPE => e
-      $stderr.puts e.message
-      retry
-    ensure
-      @client_socket.close unless @client_socket.closed?
-      @peer_socket.flush
+      @readmsg = nil
     end
+    @client_socket.close unless @client_socket.closed?
   end
 end
 
