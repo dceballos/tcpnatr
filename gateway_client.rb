@@ -1,6 +1,7 @@
 require 'peer'
 require 'peer_server'
 require 'timeout'
+require 'fcntl'
 
 class GatewayClient
   attr_reader(:port, :host, :peer_socket, :client)
@@ -12,12 +13,17 @@ class GatewayClient
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
+    @peer_socket  = PeerServer.new(port_client).start("testy", 2002)
+    @peer_socket.fcntl(6, Process.pid)
   end
 
   def start
     $stderr.puts "staring stunt procedure\n"
     start_stunt
+
+    trap("URG") do
+      raise Sigurg
+    end
 
     while (true)
       handle_accept
@@ -28,7 +34,7 @@ class GatewayClient
     begin
       @client_socket = TCPSocket.new(host, port)
       while (sockets = IO.select([@peer_socket, @client_socket]))
-        timeout(10) do
+        timeout(1) do
           sockets[0].each do |socket|                                                   
             data = socket.readpartial(4096)
             if socket == @client_socket
@@ -45,18 +51,39 @@ class GatewayClient
           end
         end
       end
-    rescue EOFError, Timeout::Error => e
+    rescue IOError, Errno::ECONNRESET, Timeout::Error => e
       $stderr.puts e.message
-      @peer_socket.flush
-      @client_socket.flush
-      @client_socket.close
-    rescue IOError, Errno::ECONNRESET => e
-      $stderr.puts e.message
-      @peer_socket.flush
-      @client_socket.flush
-      @client_socket.close
+      clean_state
+      @peer_socket.send("e", Socket::MSG_OOB)
+    rescue Sigurg
+      clean_state
     end
   end
+
+  def clean_state
+    $stderr.puts "handling sirgurg"
+    begin
+      $stderr.puts "before first select"
+      timeout(0.5) do
+        while (socket = IO.select([@peer_socket]))
+          data = socket[0][0].readpartial(4096)
+          $stderr.puts "FLUSHING #{data}"
+          @peer_socket.flush
+        end
+      end
+    rescue Timeout::Error => e
+      $stderr.puts e.message
+    rescue EOFError, Errno::EPIPE => e
+      $stderr.puts e.message
+      retry
+    ensure
+      @client_socket.close unless @client_socket.closed?
+      @peer_socket.flush
+    end
+  end
+end
+
+class Sigurg < Exception
 end
 
 if $0 == __FILE__
