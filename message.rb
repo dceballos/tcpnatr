@@ -3,25 +3,29 @@
 # 1: Error
 
 class Message
-  def initialize type = 0, size = nil
+  def initialize type = 0, size = 4
     @size = size
     @type = type
     @data = ""
   end
 
   def read_from_peer(socket)
-    if @size.nil?
+    $stderr.puts "reading from peer"
+    if @size <= 4
       @data << socket.read_nonblock(4)
       if @data.size >= 4
-        @size = @data[0..2].unpack("N")[0]
-        @type = @data[2..4].unpack("N")[0]
-        $stderr.puts("read size #@size from peer")
+        @size = @data[0..2].unpack("n")[0]
+        @type = @data[2..4].unpack("n")[0]
+        $stderr.puts("read size #{@size} and type #{@type} from peer")
+        return if error?
       end
     else
       raise "wtf" if @size < 4
       @data << socket.read_nonblock([4096,@size - @data.size].min)
     end
     socket.flush
+  rescue Errno::EAGAIN, EOFError
+    $stderr.puts "EAGAIN while reading socket. data size is #{@data.size}"
   end
 
   def read_complete?
@@ -49,7 +53,7 @@ class Message
 
   def write_to_peer(socket)
     $stderr.puts("writing size #{@size} to peer")
-    socket.write([@size].pack("N") + [@type].pack("N") + @data)
+    socket.write([@size].pack("n") + [@type].pack("n") + @data)
     $stderr.puts("wrote size #{@size} and type #{@type} to peer")
     socket.flush
   end

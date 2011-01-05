@@ -53,7 +53,7 @@ class GatewayServer
               if @readmsg.read_complete?
                 if @readmsg.error?
                   $stderr.puts "error in socket, aborting client write"
-                  @client_socket.close unless @client_socket.eof?
+                  @client_socket.close unless @client_socket.closed?
                   @readmsg = nil
                   break
                 end
@@ -65,12 +65,16 @@ class GatewayServer
           end
         end
       end
-    rescue IOError, Errno::ECONNRESET, Errno::EAGAIN, Timeout::Error => e
+    rescue EOFError
+      $stderr.puts "EOF error!"
+    rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
-      if @client_socket.eof?
-        $stderr.puts "sending error message to peer"
-        @errormsg = Message.new(1)
-        @errormsg.write_to_peer(@peer_socket)
+      unless @client_socket.closed?
+        if @client_socket.eof?
+          $stderr.puts "sending error message to peer"
+          @errormsg = Message.new(1)
+          @errormsg.write_to_peer(@peer_socket)
+        end
       end
     end
   end
