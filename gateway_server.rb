@@ -1,7 +1,17 @@
 require 'peer'
 require 'peer_server'
 require 'timeout'
-require 'fcntl'
+require 'message'
+
+class String
+  def to_hex
+    ret = ""
+    each_byte do |byte|
+      ret << byte.to_s(16)
+    end
+    ret.scan(/.{0,16}/).join("\n")
+  end
+end
 
 class GatewayServer
   attr_reader(:port, :peer_socket, :server)
@@ -13,7 +23,6 @@ class GatewayServer
   def start_stunt
     port_client  = PortClient.new("blastmefy.net:2000")
     @peer_socket = Peer.new(port_client).start("testy", 2005)
-    @peer_socket.fcntl(8, Process.pid)
   end
 
   def start
@@ -23,72 +32,48 @@ class GatewayServer
     @server = TCPServer.new(port)
     $stderr.puts "starting gateway server on port #{port}\n"
 
-    trap("URG") do
-      raise Sigurg
-    end
-
-    begin
-      while (@client_socket = server.accept)
-        handle_accept
-      end
-    rescue Sigurg
-      clean_state
-      retry
+    while (@client_socket = server.accept)
+      handle_accept
     end
   end
 
   def handle_accept
     begin
-      $stderr.puts "before first select"
-      while(sockets = IO.select([@client_socket, @peer_socket]))
+      while (sockets = IO.select([@peer_socket, @client_socket]))
+        rsock, _, _ = sockets
         timeout(1) do
-          sockets[0].each do |socket|
-            data = socket.readpartial(4096)
+          rsock.each do |socket|                                                   
             if socket == @client_socket
-              $stderr.puts "reading from client socket, writing to peer"
-              @peer_socket.write data
-              @peer_socket.flush
-              $stderr.puts data
+              @writemsg = Message.new
+              @writemsg.read_from_client(@client_socket)
+              @writemsg.write_to_peer(@peer_socket)
             else
-              $stderr.puts "reading from peer socket, writing to client"
-              @client_socket.write data
-              @client_socket.flush
-              $stderr.puts data
+              @readmsg ||= Message.new
+              @readmsg.read_from_peer(@peer_socket)
+              if @readmsg.read_complete?
+                if @readmsg.error?
+                  $stderr.puts "error in socket, aborting client write"
+                  @client_socket.close unless @client_socket.eof?
+                  @readmsg = nil
+                  break
+                end
+                $stderr.puts "reading from peer socket, writing to client"
+                @readmsg.write_to_client(@client_socket)
+                @readmsg = nil
+              end
             end
           end
         end
-      end 
-    rescue IOError, Errno::ECONNRESET, Timeout::Error => e
-      $stderr.puts e.message
-      clean_state
-      @peer_socket.send("e", Socket::MSG_OOB)
-    rescue Sigurg
-      clean_state
-    end
-  end
-
-  def clean_state
-    $stderr.puts "handling sigurg"
-    begin
-      timeout(1) do
-        while (socket = IO.select([@peer_socket]))
-          data = socket[0][0].readpartial(4096)
-          $stderr.puts "FLUSHING #{data}"
-        end
       end
-    rescue Timeout::Error => e
+    rescue IOError, Errno::ECONNRESET, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
-    rescue EOFError, Errno::EPIPE => e
-      $stderr.puts e.message
-      retry
-    ensure
-      @client_socket.close unless @client_socket.closed?
-      @peer_socket.flush
+      if @client_socket.eof?
+        $stderr.puts "sending error message to peer"
+        @errormsg = Message.new(1)
+        @errormsg.write_to_peer(@peer_socket)
+      end
     end
   end
-end
-
-class Sigurg < Exception
 end
 
 if $0 == __FILE__
