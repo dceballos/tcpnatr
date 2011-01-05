@@ -49,8 +49,8 @@ class Message
 
   def write_to_peer(socket)
     $stderr.puts("writing size #{@size} to peer")
-    socket.write([@size].pack("N") + @data)
-    $stderr.puts("wrote size #{@size} to peer")
+    socket.write([@size].pack("N") + @type + @data)
+    $stderr.puts("wrote size #{@size} and type #{@type} to peer")
     socket.flush
   end
 end
