@@ -23,7 +23,7 @@ class GatewayClient
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @peer_socket  = PeerServer.new(port_client).start("testy", 2004)
+    @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
   end
 
   def start
@@ -53,24 +53,32 @@ class GatewayClient
               if @readmsg.read_complete?
                 if @readmsg.error?
                   $stderr.puts "error in socket, aborting client write"
-                  @client_socket.close unless @client_socket.eof?
+                  @client_socket.close unless @client_socket.closed?
                   @readmsg = nil
                   break
                 end
                 $stderr.puts "reading from peer socket, writing to client"
                 @readmsg.write_to_client(@client_socket)
                 @readmsg = nil
+              else
+                $stderr.puts "read not complete"
               end
             end
           end
         end
       end
-    rescue IOError, Errno::ECONNRESET, Timeout::Error => e
+    rescue EOFError
+      $stderr.puts "EOF error!"
+    rescue Errno::ECONNRESET
+      $stderr.puts "ECONNRESET"
+    rescue IOError, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
-      if @client_socket.eof?
-        $stderr.puts "sending error message to peer"
-        @errormsg = Message.new(1)
-        @errormsg.write_to_peer(@peer_socket)
+      unless @client_socket.closed?
+        if @client_socket.eof?
+          $stderr.puts "sending error message to peer"
+          @errormsg = Message.new(1)
+          @errormsg.write_to_peer(@peer_socket)
+        end
       end
     end
   end
