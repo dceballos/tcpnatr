@@ -34,12 +34,14 @@ class GatewayServer
 
     $stderr.puts "handling accept"
     while (@client_socket = server.accept)
+      $stderr.puts "handling accepty 2"
       handle_accept
     end
   end
 
   def handle_accept
     begin
+      $stderr.puts "afty handling accept"
       while (sockets = IO.select([@peer_socket, @client_socket]))
         rsock, _, _ = sockets
         timeout(1) do
@@ -47,9 +49,7 @@ class GatewayServer
             if socket == @client_socket
               @writemsg = Message.new
               @writemsg.read_from_client(@client_socket)
-              $stderr.puts "b4 writing to peer"
               @writemsg.write_to_peer(@peer_socket)
-              $stderr.puts "b4 writing to peer"
             else
               @readmsg ||= Message.new
               @readmsg.read_from_peer(@peer_socket)
@@ -69,10 +69,7 @@ class GatewayServer
           end
         end
       end
-    rescue EOFError
-      $stderr.puts "EOF error!"
-      clean_peer
-    rescue Errno::ECONNRESET, Errno::EPIPE, IOError, Errno::EAGAIN, Timeout::Error => e
+    rescue EOFError, Errno::ECONNRESET, Errno::EPIPE, IOError, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
       clean_peer
     end
@@ -84,8 +81,9 @@ class GatewayServer
     @errormsg.write_to_peer(@peer_socket)
 
     while (true)
+      $stderr.puts "stil standing"
       begin
-        timeout(1) do
+        timeout(0.5) do
           sockets = IO.select([@peer_socket])
           @readmsg ||= Message.new
           $stderr.puts "peer still sending"
@@ -95,16 +93,17 @@ class GatewayServer
             $stderr.puts "flushing peer socket"
             if @readmsg.error?
               $stderr.puts "received fin from peer. closing client"
-              @client_socket.close
+              @client_socket.close unless @client_socket.closed?
               @readmsg = nil
-              break
+              return
             end
           end
           @readmsg = nil
         end
       rescue Timeout::Error
-        $stderr.puts "timeout error cleaning"
-        break
+        $stderr.puts "timeout select"
+        @client_socket.close unless @client_socket.closed?
+        return
       end
     end
   end

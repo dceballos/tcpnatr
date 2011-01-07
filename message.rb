@@ -1,9 +1,11 @@
 # Message types:
 # 0: Data
-# 1: Error
+# 1: Finished
+# 2: Finished Acknowledgement
 
 class Message
   attr_accessor :data, :size
+  attr_reader   :type
 
   def initialize type = 0, size = nil
     @size = size
