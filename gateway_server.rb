@@ -32,6 +32,7 @@ class GatewayServer
     @server = TCPServer.new(port)
     $stderr.puts "starting gateway server on port #{port}\n"
 
+    $stderr.puts "handling accept"
     while (@client_socket = server.accept)
       handle_accept
     end
@@ -46,20 +47,23 @@ class GatewayServer
             if socket == @client_socket
               @writemsg = Message.new
               @writemsg.read_from_client(@client_socket)
+              $stderr.puts "b4 writing to peer"
               @writemsg.write_to_peer(@peer_socket)
+              $stderr.puts "b4 writing to peer"
             else
               @readmsg ||= Message.new
               @readmsg.read_from_peer(@peer_socket)
               if @readmsg.read_complete?
                 if @readmsg.error?
-                  $stderr.puts "error in socket, aborting client write"
-                  @client_socket.close unless @client_socket.closed?
-                  @readmsg = nil
+                  $stderr.puts "readmsg error, cleaning peer socket"
+                  clean_peer
                   break
                 end
                 $stderr.puts "reading from peer socket, writing to client"
                 @readmsg.write_to_client(@client_socket)
                 @readmsg = nil
+              else
+                $stderr.puts "@readmsg has not finished reading.  current size #{@readmsg.data.size}, expected #{@readmsg.size}"
               end
             end
           end
@@ -67,15 +71,32 @@ class GatewayServer
       end
     rescue EOFError
       $stderr.puts "EOF error!"
-    rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+      clean_peer
+    rescue Errno::ECONNRESET, Errno::EPIPE, IOError, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
-      unless @client_socket.closed?
-        if @client_socket.eof?
-          $stderr.puts "sending error message to peer"
-          @errormsg = Message.new(1)
-          @errormsg.write_to_peer(@peer_socket)
+      clean_peer
+    end
+  end
+
+  def clean_peer
+    $stderr.puts "sending error message to peer"
+    @errormsg = Message.new(1)
+    @errormsg.write_to_peer(@peer_socket)
+
+    while (sockets = IO.select([@peer_socket]))
+      @readmsg ||= Message.new
+      $stderr.puts "peer still sending"
+      @readmsg.read_from_peer(@peer_socket)
+      $stderr.puts @readmsg.data.to_hex
+      if @readmsg.read_complete?
+        $stderr.puts "flushing peer socket"
+        if @readmsg.error?
+          @client_socket.close
+          @readmsg = nil
+          break
         end
       end
+      @readmsg = nil
     end
   end
 end
