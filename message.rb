@@ -38,7 +38,7 @@ class Message
   end
 
   def error?
-    @type == 1 ? true : false
+    @type != 0 ? true : false
   end
 
   def write_to_client(socket)
