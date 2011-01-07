@@ -23,7 +23,7 @@ class GatewayClient
 
   def start_stunt
     port_client   = PortClient.new("blastmefy.net:2000")
-    @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
+    @peer_socket  = PeerServer.new(port_client).start("testy", 2002)
   end
 
   def start
@@ -52,10 +52,17 @@ class GatewayClient
               @readmsg.read_from_peer(@peer_socket)
               if @readmsg.read_complete?
                 if @readmsg.error?
-                  $stderr.puts "error in socket, aborting client write"
-                  @client_socket.close unless @client_socket.closed?
-                  @readmsg = nil
-                  break
+                  if @readmsg.type == 1
+                    finack = Message.new(2)
+                    finack.write_to_peer(@peer_socket)
+                    @client_socket.close unless @client_socket.closed?
+                    @readmsg = nil
+                    return
+                  elsif @readmsg.type == 2
+                    @client_socket.close unless @client_socket.closed?
+                    @readmsg = nil
+                    return
+                  end
                 end
                 $stderr.puts "reading from peer socket, writing to client"
                 @readmsg.write_to_client(@client_socket)
@@ -67,18 +74,38 @@ class GatewayClient
           end
         end
       end
-    rescue EOFError
-      $stderr.puts "EOF error!"
-    rescue Errno::ECONNRESET
-      $stderr.puts "ECONNRESET"
-    rescue IOError, Errno::EAGAIN, Timeout::Error => e
+    rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
       $stderr.puts e.message
-      unless @client_socket.closed?
-        if @client_socket.eof?
-          $stderr.puts "sending error message to peer"
-          @errormsg = Message.new(1)
-          @errormsg.write_to_peer(@peer_socket)
+      finish
+    end
+  end
+
+  def finish
+    $stderr.puts "sending error message to peer"
+    @errormsg = Message.new(1)
+    @errormsg.write_to_peer(@peer_socket)
+
+    loop do
+      begin
+        timeout(0.5) do
+          sockets = IO.select([@peer_socket])
+          @readmsg ||= Message.new
+          @readmsg.read_from_peer(@peer_socket)
+          $stderr.puts @readmsg.data.to_hex
+          if @readmsg.read_complete?
+            if @readmsg.error?
+              $stderr.puts "received fin from peer. closing client"
+              @client_socket.close unless @client_socket.closed?
+              @readmsg = nil
+              return
+            end
+          end
+          @readmsg = nil
         end
+      rescue Timeout::Error
+        $stderr.puts "timeout select"
+        @client_socket.close unless @client_socket.closed?
+        return
       end
     end
   end
