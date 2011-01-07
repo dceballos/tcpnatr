@@ -83,20 +83,29 @@ class GatewayServer
     @errormsg = Message.new(1)
     @errormsg.write_to_peer(@peer_socket)
 
-    while (sockets = IO.select([@peer_socket]))
-      @readmsg ||= Message.new
-      $stderr.puts "peer still sending"
-      @readmsg.read_from_peer(@peer_socket)
-      $stderr.puts @readmsg.data.to_hex
-      if @readmsg.read_complete?
-        $stderr.puts "flushing peer socket"
-        if @readmsg.error?
-          @client_socket.close
+    while (true)
+      begin
+        timeout(1) do
+          sockets = IO.select([@peer_socket])
+          @readmsg ||= Message.new
+          $stderr.puts "peer still sending"
+          @readmsg.read_from_peer(@peer_socket)
+          $stderr.puts @readmsg.data.to_hex
+          if @readmsg.read_complete?
+            $stderr.puts "flushing peer socket"
+            if @readmsg.error?
+              $stderr.puts "received fin from peer. closing client"
+              @client_socket.close
+              @readmsg = nil
+              break
+            end
+          end
           @readmsg = nil
-          break
         end
+      rescue Timeout::Error
+        $stderr.puts "timeout error cleaning"
+        break
       end
-      @readmsg = nil
     end
   end
 end
