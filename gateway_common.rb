@@ -25,6 +25,10 @@ module GatewayCommon
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
                     return
+                  elsif @readmsg.type == 3
+                    $stderr.puts("received keepalive")
+                    @readmsg = nil
+                    return
                   end
                 end
                 $stderr.puts("reading from peer socket, writing to client")
@@ -70,6 +74,11 @@ module GatewayCommon
         return
       end
     end
+  end
+
+  def keepalive                                                                    
+    keepalive = Message.new(3)                                                     
+    keepalive.write_to_peer(@peer_socket)                                          
   end
 end
 
