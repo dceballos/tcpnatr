@@ -27,7 +27,7 @@ class GatewayClient
   end
 
   def start
-    $stderr.puts "staring stunt procedure"
+    $stderr.puts("staring stunt procedure")
     start_stunt
 
     while (true)
@@ -38,9 +38,8 @@ class GatewayClient
 
   def handle_accept
     begin
-      $stderr.puts("handling accept...")
+      $stderr.puts("waiting for connections")
       while (sockets = IO.select([@peer_socket, @client_socket]))
-        $stderr.puts("accepted #{sockets[0].size} sockets")
         timeout(1) do
           sockets[0].each do |socket|                                                   
             if socket == @client_socket
@@ -51,24 +50,24 @@ class GatewayClient
               @readmsg ||= Message.new
               @readmsg.read_from_peer(@peer_socket)
               if @readmsg.read_complete?
-                if @readmsg.error?
+                if @readmsg.fin?
                   if @readmsg.type == 1
+                    $stderr.puts("received fin sending finack")
                     finack = Message.new(2)
                     finack.write_to_peer(@peer_socket)
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
                     return
                   elsif @readmsg.type == 2
+                    $stderr.puts("received finack")
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
                     return
                   end
                 end
-                $stderr.puts "reading from peer socket, writing to client"
+                $stderr.puts("reading from peer socket, writing to client")
                 @readmsg.write_to_client(@client_socket)
                 @readmsg = nil
-              else
-                $stderr.puts "read not complete"
               end
             end
           end
@@ -81,9 +80,9 @@ class GatewayClient
   end
 
   def finish
-    $stderr.puts "sending error message to peer"
-    @errormsg = Message.new(1)
-    @errormsg.write_to_peer(@peer_socket)
+    $stderr.puts("sending fin")
+    fin = Message.new(1)
+    fin.write_to_peer(@peer_socket)
 
     loop do
       begin
@@ -91,11 +90,10 @@ class GatewayClient
           sockets = IO.select([@peer_socket])
           @readmsg ||= Message.new
           @readmsg.read_from_peer(@peer_socket)
-          $stderr.puts @readmsg.data.to_hex
           if @readmsg.read_complete?
-            if @readmsg.error?
+            if @readmsg.fin?
               if @readmsg.type == 2
-                $stderr.puts "received fin from peer. closing client"
+                $stderr.puts("received finack")
                 @client_socket.close unless @client_socket.closed?
                 @readmsg = nil
                 return
@@ -105,7 +103,7 @@ class GatewayClient
           @readmsg = nil
         end
       rescue Timeout::Error
-        $stderr.puts "timeout select"
+        $stderr.puts("timeout cleaning socket")
         @client_socket.close unless @client_socket.closed?
         return
       end
