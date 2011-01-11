@@ -1,18 +1,7 @@
-require 'peer'
-require 'peer_server'
 require 'timeout'
-require 'gateway_common'
+require 'peer'
 require 'message'
-
-class String
-  def to_hex
-    ret = ""
-    each_byte do |byte|
-      ret << byte.to_s(16)
-    end
-    ret.scan(/.{0,16}/).join("\n")
-  end
-end
+require 'gateway_common'
 
 class GatewayServer
   include GatewayCommon

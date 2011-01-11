@@ -72,3 +72,13 @@ module GatewayCommon
     end
   end
 end
+
+class String
+  def to_hex
+    ret = ""
+    each_byte do |byte|
+      ret << byte.to_s(16)
+    end   
+    ret.scan(/.{0,16}/).join("\n")
+  end   
+end   
