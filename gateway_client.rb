@@ -94,10 +94,12 @@ class GatewayClient
           $stderr.puts @readmsg.data.to_hex
           if @readmsg.read_complete?
             if @readmsg.error?
-              $stderr.puts "received fin from peer. closing client"
-              @client_socket.close unless @client_socket.closed?
-              @readmsg = nil
-              return
+              if @readmsg.type == 2
+                $stderr.puts "received fin from peer. closing client"
+                @client_socket.close unless @client_socket.closed?
+                @readmsg = nil
+                return
+              end
             end
           end
           @readmsg = nil
