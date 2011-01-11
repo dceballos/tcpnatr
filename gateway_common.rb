@@ -5,7 +5,7 @@ module GatewayCommon
     begin
       while (sockets = IO.select([@peer_socket, @client_socket]))
         timeout(1) do
-          sockets[0].each do |socket|                                                   
+          sockets[0].each do |socket|
             if socket == @client_socket
               @writemsg = Message.new
               @writemsg.read_from_client(@client_socket)
@@ -17,7 +17,7 @@ module GatewayCommon
                 unless @readmsg.payload?
                   if @readmsg.fin?
                     $stderr.puts("received fin sending finack")
-                    finack = Message.new(2)
+                    finack = Message.new(Message::FINACK)
                     finack.write_to_peer(@peer_socket)
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
@@ -49,7 +49,7 @@ module GatewayCommon
 
   def finish
     $stderr.puts("sending fin")
-    fin = Message.new(1)
+    fin = Message.new(Message::FIN)
     fin.write_to_peer(@peer_socket)
 
     loop do
@@ -59,8 +59,8 @@ module GatewayCommon
           @readmsg ||= Message.new
           @readmsg.read_from_peer(@peer_socket)
           if @readmsg.read_complete?
-            if @readmsg.fin?
-              if @readmsg.type == 2
+            unless @readmsg.payload?
+              if @readmsg.finack?
                 $stderr.puts("received finack")
                 @client_socket.close unless @client_socket.closed?
                 @readmsg = nil
@@ -79,7 +79,7 @@ module GatewayCommon
   end
 
   def keepalive                                                                    
-    keepalive = Message.new(3)                                                     
+    keepalive = Message.new(Message::KEEPALIVE)                                                     
     keepalive.write_to_peer(@peer_socket)                                          
   end
 end

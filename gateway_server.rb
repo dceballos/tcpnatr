@@ -30,7 +30,7 @@ class GatewayServer
           $stderr.puts("waiting for connections")
           @client_socket = server.accept
         end
-      rescue Timeout::Error => e
+      rescue Timeout::Error
         $stderr.puts("sending keepalive")                                     
         keepalive
         retry

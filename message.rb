@@ -1,12 +1,18 @@
 # Message types:
-# 0: Data
+# 0: Payload
 # 1: Finished (Fin)
 # 2: Finished Acknowledgement (FinAck)
+# 3: Keepalive
 
 class Message
   attr_reader :type, :data, :size
 
-  def initialize type = 0
+  PAYLOAD   = 0
+  FIN       = 1
+  FINACK    = 2
+  KEEPALIVE = 3
+
+  def initialize(type = PAYLOAD)
     @size = nil
     @type = type
     @data = ""
@@ -34,19 +40,19 @@ class Message
   end
 
   def payload?
-    @type == 0 ? true : false
+    @type == PAYLOAD ? true : false
   end
 
   def fin?
-    @type == 1 ? true : false
+    @type == FIN ? true : false
   end
 
   def finack?
-    @type == 2 ? true : false
+    @type == FINACK ? true : false
   end
 
   def keepalive?
-    @type == 3 ? true : false
+    @type == KEEPALIVE ? true : false
   end
 
   def write_to_client(socket)
