@@ -5,6 +5,7 @@ require 'gateway_common'
 
 class GatewayClient
   include GatewayCommon
+
   attr_reader(:port, :host, :peer_socket, :client)
 
   def initialize(host, port)
@@ -23,7 +24,6 @@ class GatewayClient
 
     while (true)
       @client_socket = TCPSocket.new(host, port)
-
       $stderr.puts("waiting for connections")
       handle_accept
     end

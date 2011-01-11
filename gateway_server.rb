@@ -4,8 +4,8 @@ require 'message'
 require 'gateway_common'
 
 class GatewayServer
-  KEEPALIVE_TIMEOUT = 20
   include GatewayCommon
+
   attr_reader(:port, :peer_socket, :server)
 
   def initialize(port)
@@ -25,7 +25,7 @@ class GatewayServer
     $stderr.puts("starting gateway server on port #{port}")
     $stderr.puts("waiting for connections")
 
-    while (true)
+    loop do
       begin
         timeout(KEEPALIVE_TIMEOUT) do
           @client_socket = server.accept

@@ -1,4 +1,6 @@
 module GatewayCommon
+  KEEPALIVE_TIMEOUT = 20
+
   def handle_accept
     begin
       while (sockets = IO.select([@peer_socket, @client_socket]))
