@@ -20,14 +20,14 @@ class GatewayServer
   def start
     $stderr.puts("starting stunt procedure")
     start_stunt
-    @server = TCPServer.new(port)
 
-    $stderr.puts("starting gateway server on port #{port}")
-    $stderr.puts("waiting for connections")
+    @server = TCPServer.new(port)
+    $stderr.puts("gateway server started on port #{port}")
 
     loop do
       begin
         timeout(KEEPALIVE_TIMEOUT) do
+          $stderr.puts("waiting for connections")
           @client_socket = server.accept
         end
       rescue Timeout::Error => e
