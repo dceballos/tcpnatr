@@ -25,17 +25,17 @@ class GatewayServer
     $stderr.puts("starting gateway server on port #{port}")
     $stderr.puts("waiting for connections")
 
-    begin
-      while (true)
+    while (true)
+      begin
         timeout(KEEPALIVE_TIMEOUT) do
           @client_socket = server.accept
         end
-        handle_accept
+      rescue Timeout::Error => e
+        $stderr.puts("sending keepalive")                                     
+        keepalive
+        retry
       end
-    rescue Timeout::Error => e
-      $stderr.puts("accept timeout keepalive")                                     
-      keepalive                                                                    
-      retry
+      handle_accept
     end
   end
 end
