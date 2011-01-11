@@ -1,43 +1,39 @@
 # Message types:
 # 0: Data
-# 1: Finished
-# 2: Finished Acknowledgement
+# 1: Finished (Fin)
+# 2: Finished Acknowledgement (FinAck)
 
 class Message
-  attr_accessor :data, :size
-  attr_reader   :type
+  attr_reader :type, :data, :size
 
-  def initialize type = 0, size = nil
-    @size = size
+  def initialize type = 0
+    @size = nil
     @type = type
     @data = ""
   end
 
   def read_from_peer(socket)
     if @size.nil?
-      $stderr.puts "reading from peer. size is #{@size}"
       @data << socket.read_nonblock(4)
       if @data.size >= 4
         @size = @data[0..2].unpack("n")[0]
         @type = @data[2..4].unpack("n")[0]
-        $stderr.puts("read size #{@size} and type #{@type} from peer")
-        return if error?
+        $stderr.puts("peer message header read.  size is #{@size} and type is #{@type}")
+        return if fin?
       end
     else
-      raise "wtf" if @size < 4
+      raise "wtf size" if @size < 4
       @data << socket.read_nonblock([4096,@size - @data.size].min)
       $stderr.puts "reading from peer. data size is #{@data.size}"
     end
     socket.flush
-  rescue Errno::EAGAIN => e
-    $stderr.puts e.message
   end
 
   def read_complete?
     @size == @data.size
   end
 
-  def error?
+  def fin?
     @type != 0 ? true : false
   end
 
@@ -46,7 +42,7 @@ class Message
     socket.flush
     $stderr.puts("#{@data[4..-1].size} bytes written to client")
   rescue Errno::EPIPE => e
-    $stderr.puts "Error writing to client.  Socket closed"
+    $stderr.puts("error writing to client")
     raise e
   end
 
