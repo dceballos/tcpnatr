@@ -19,7 +19,7 @@ class Message
         @size = @data[0..2].unpack("n")[0]
         @type = @data[2..4].unpack("n")[0]
         $stderr.puts("peer message header read.  size is #{@size} and type is #{@type}")
-        return if fin?
+        return unless payload?
       end
     else
       raise "wtf size" if @size < 4
@@ -33,8 +33,20 @@ class Message
     @size == @data.size
   end
 
+  def payload?
+    @type == 0 ? true : false
+  end
+
   def fin?
-    @type != 0 ? true : false
+    @type == 1 ? true : false
+  end
+
+  def finack?
+    @type == 2 ? true : false
+  end
+
+  def keepalive?
+    @type == 3 ? true : false
   end
 
   def write_to_client(socket)

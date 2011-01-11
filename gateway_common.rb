@@ -14,20 +14,20 @@ module GatewayCommon
               @readmsg ||= Message.new
               @readmsg.read_from_peer(@peer_socket)
               if @readmsg.read_complete?
-                if @readmsg.fin?
-                  if @readmsg.type == 1
+                unless @readmsg.payload?
+                  if @readmsg.fin?
                     $stderr.puts("received fin sending finack")
                     finack = Message.new(2)
                     finack.write_to_peer(@peer_socket)
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
                     return
-                  elsif @readmsg.type == 2
+                  elsif @readmsg.finack?
                     $stderr.puts("received finack")
                     @client_socket.close unless @client_socket.closed?
                     @readmsg = nil
                     return
-                  elsif @readmsg.type == 3
+                  elsif @readmsg.keepalive?
                     $stderr.puts("received keepalive")
                     @readmsg = nil
                     return
