@@ -6,7 +6,6 @@ require 'gateway_common'
 module Gateway
   class Client
     include Gateway::Common
-
     attr_reader(:port, :host, :peer_socket, :client)
 
     def initialize(host, port)
@@ -20,7 +19,7 @@ module Gateway
     end
 
     def start
-      $stderr.puts("staring stunt procedure")
+      $stderr.puts("starting nat traversal")
       start_stunt
 
       while (true)

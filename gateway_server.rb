@@ -6,7 +6,6 @@ require 'gateway_common'
 module Gateway
   class Server
     include Gateway::Common
-
     attr_reader(:port, :peer_socket, :server)
 
     def initialize(port)
@@ -19,7 +18,7 @@ module Gateway
     end
 
     def start
-      $stderr.puts("starting stunt procedure")
+      $stderr.puts("starting nat traversal")
       start_stunt
 
       @server = TCPServer.new(port)
