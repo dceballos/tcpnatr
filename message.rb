@@ -12,8 +12,8 @@ class Message
   FINACK    = 2
   KEEPALIVE = 3
 
-  def initialize(type = PAYLOAD)
-    @id   = (rand(4096) + rand(4096)) % 256
+  def initialize(type = PAYLOAD, id = nil)
+    @id   = id
     @size = nil
     @type = type
     @data = ""

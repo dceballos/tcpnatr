@@ -1,6 +1,5 @@
 require 'timeout'
 require 'peer'
-require 'message'
 require 'gateway_common'
 
 module Gateway
@@ -10,6 +9,7 @@ module Gateway
 
     def initialize(port)
       @port = port
+      @transactions = {}
     end
 
     def start_stunt
@@ -28,7 +28,8 @@ module Gateway
         begin
           timeout(KEEPALIVE_TIMEOUT) do
             $stderr.puts("waiting for connections")
-            @client_socket = server.accept
+            @transactions[new_transaction_id] = server.accept
+            $stderr.puts("@transactions #{@transactions.inspect}")
           end
         rescue Timeout::Error
           $stderr.puts("sending keepalive")                                     
@@ -36,6 +37,13 @@ module Gateway
           retry
         end
         handle_accept
+      end
+    end
+
+    def new_transaction_id
+      loop do
+        nid = rand(256)
+        return nid unless @transactions.has_key?(nid)
       end
     end
   end
