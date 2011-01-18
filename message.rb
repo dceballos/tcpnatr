@@ -5,7 +5,7 @@
 # 3: Keepalive
 
 class Message
-  attr_reader :type, :data, :size
+  attr_reader :id, :type, :data, :size
 
   PAYLOAD   = 0
   FIN       = 1
@@ -13,6 +13,7 @@ class Message
   KEEPALIVE = 3
 
   def initialize(type = PAYLOAD)
+    @id   = (rand(4096) + rand(4096)) % 256
     @size = nil
     @type = type
     @data = ""
@@ -20,15 +21,16 @@ class Message
 
   def read_from_peer(socket)
     if @size.nil?
-      @data << socket.read_nonblock(4)
-      if @data.size >= 4
+      @data << socket.read_nonblock(6)
+      if @data.size >= 6
         @size = @data[0..2].unpack("n")[0]
         @type = @data[2..4].unpack("n")[0]
+        @id   = @data[4..6].unpack("n")[0]
         $stderr.puts("peer message header read.  size is #{@size} and type is #{@type}")
         return unless payload?
       end
     else
-      raise "wtf size" if @size < 4
+      raise "wtf size" if @size < 6
       @data << socket.read_nonblock([4096,@size - @data.size].min)
       $stderr.puts "reading from peer. data size is #{@data.size}"
     end
@@ -56,9 +58,9 @@ class Message
   end
 
   def write_to_client(socket)
-    socket.write(@data[4..-1])
+    socket.write(@data[6..-1])
     socket.flush
-    $stderr.puts("#{@data[4..-1].size} bytes written to client")
+    $stderr.puts("#{@data[6..-1].size} bytes written to client")
   rescue Errno::EPIPE => e
     $stderr.puts("error writing to client")
     raise e
@@ -66,7 +68,7 @@ class Message
 
   def read_from_client(socket)
     @data = socket.read_nonblock(4096)
-    @size = @data.size + 4
+    @size = @data.size + 6
     $stderr.puts("#{@data.size} bytes read from client")
   rescue Errno::ECONNRESET => e
     $stderr.puts("client closed")
@@ -74,9 +76,9 @@ class Message
   end
 
   def write_to_peer(socket)
-    @size = @data.size + 4 if @size.nil?
+    @size = @data.size + 6 if @size.nil?
     $stderr.puts("writing size #{@size} to peer")
-    socket.write([@size].pack("n") + [@type].pack("n") + @data)
+    socket.write([@size].pack("n") + [@type].pack("n") + [@id].pack("n") + @data)
     $stderr.puts("wrote size #{@size} and type #{@type} to peer")
     socket.flush
   end
