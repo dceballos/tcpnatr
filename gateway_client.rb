@@ -11,11 +11,12 @@ module Gateway
     def initialize(host, port)
       @host = host
       @port = port
+      @transactions = {}
     end
 
     def start_stunt
       port_client   = PortClient.new("blastmefy.net:2000")
-      @peer_socket  = PeerServer.new(port_client).start("testy", 2002)
+      @peer_socket  = PeerServer.new(port_client).start("testy", 2007)
     end
 
     def start
@@ -23,7 +24,6 @@ module Gateway
       start_stunt
 
       while (true)
-        @client_socket = TCPSocket.new(host, port)
         $stderr.puts("waiting for connections")
         handle_accept
       end

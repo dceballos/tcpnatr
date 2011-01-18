@@ -30,5 +30,5 @@ end
 
 if $0 == __FILE__
   $:.push(File.dirname(__FILE__))
-  PortPredict.new.start(2009)
+  PortPredict.new.start(2003)
 end
