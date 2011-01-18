@@ -73,7 +73,7 @@ module Gateway
 
     def finish
       $stderr.puts("sending fin")
-      fin = Message.new(Message::FIN)
+      fin = Message.new(Message::FIN, 100)
       fin.write_to_peer(@peer_socket)
 
       loop do
