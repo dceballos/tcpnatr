@@ -5,14 +5,12 @@ module Gateway
   module Common
     KEEPALIVE_TIMEOUT = 20
 
-    def handle_accept
+    def handle_accept(client_socket)
       begin
         loop do
-          $stderr.puts("@transactions #{@transactions.inspect}")
-          sockets = IO.select([@peer_socket] + @transactions.values)
+          sockets = IO.select([@peer_socket, client_socket])
           timeout(1) do
             sockets[0].each do |socket|
-              client_socket = @transactions[transaction_id(socket)]
               $stderr.puts("client socket #{client_socket}")
               if socket != @peer_socket
                 $stderr.puts("reading from client socket")
@@ -25,7 +23,7 @@ module Gateway
                 @readmsg.read_from_peer(@peer_socket)
                 $stderr.puts("id from peer is #{@readmsg.id}")
                 unless @transactions[@readmsg.id]
-                  client_socket = TCPSocket.new(host, port) if client_socket.nil?
+                  client_socket = TCPSocket.new("localhost", port) if client_socket.nil?
                   @transactions[@readmsg.id] = client_socket
                 else
                   client_socket = @transactions[@readmsg.id]
