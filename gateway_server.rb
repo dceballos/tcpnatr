@@ -1,6 +1,7 @@
 require 'timeout'
 require 'peer'
 require 'gateway_common'
+require 'gateway_client'
 
 module Gateway
   class Server

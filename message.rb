@@ -74,11 +74,14 @@ class Message
   end
 
   def write_to_peer(socket)
+    return if @id.nil?
     @size = @data.size + 6 if @size.nil?
     $stderr.puts("writing size #{@size} to peer")
     socket.write([@size].pack("n") + [@type].pack("n") + [@id].pack("n") + @data)
     $stderr.puts("wrote size #{@size} and type #{@type} to peer")
     socket.flush
+  rescue Exception => e
+    $stderr.puts "EXCEPTION WRITING TO PEER #{e.message}"
   end
 end
 

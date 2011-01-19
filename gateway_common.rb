@@ -17,21 +17,27 @@ module Gateway
               $stderr.puts("reading from client socket")
               @writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
               @writemsg.read_from_client(socket)
+              $stderr.puts("writing to peer for #{@writemsg.id}")
               @writemsg.write_to_peer(@peer_socket)
+              $stderr.puts("wrote #{@writemsg.id} to peer")
             end
           end
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+        return if @transactions[transaction_id(client_socket)].nil?
         $stderr.puts e.message + " foo"
-        @transactions.delete(transaction_id(client_socket))
-        retry
+        $stderr.puts("sending fin for #{@writemsg.id}")
+        fin = Message.new(Message::FIN, @writemsg.id)
+        fin.write_to_peer(@peer_socket)
+        client_socket.close
+        #@transactions.delete(transaction_id(client_socket))
       end
     end
 
     def handle_peer
       begin
         loop do
-          $stderr.puts "waiting for peer"
+          $stderr.puts("waiting for peer")
           sockets = IO.select([@peer_socket])
           timeout(1) do
             sockets[0].each do |socket|
@@ -39,37 +45,47 @@ module Gateway
               @readmsg ||= Message.new
               @readmsg.read_from_peer(@peer_socket)
               $stderr.puts("id from peer is #{@readmsg.id}")
+              if self.is_a?(Gateway::Client)
+                unless @transactions[@readmsg.id] && @readmsg.id != 0
+                  $stderr.puts("new client for #{@readmsg.id}")
+                  client_socket = TCPSocket.new("localhost", port)
+                  @transactions[@readmsg.id] = client_socket
+                  Thread.new do
+                    handle_client(client_socket)
+                  end
+                end
+              end
               client_socket = @transactions[@readmsg.id]
               $stderr.puts("client socket from message is #{client_socket.to_s}")
               if @readmsg.read_complete?
-                $stderr.puts "read complete"
                 unless @readmsg.payload?
                   if @readmsg.fin?
-                    $stderr.puts("received fin sending finack")
+                    $stderr.puts("received fin for #{@readmsg.id} sending finack")
                     finack = Message.new(Message::FINACK, @readmsg.id)
                     finack.write_to_peer(@peer_socket)
-                    unless client_socket.closed?
-                      client_socket.close
-                      @transactions.delete(transaction_id(client_socket))
-                    end
+                    #client_socket.close unless client_socket.closed?
+                    @transactions.delete(transaction_id(client_socket))
                     @readmsg = nil
-                    next
+                    break
                   elsif @readmsg.finack?
-                    $stderr.puts("received finack")
-                    unless client_socket.closed?
-                      client_socket.close
-                      @transactions.delete(transaction_id(client_socket))
-                    end
+                    $stderr.puts("received finack for #{@readmsg.id} in main")
+                    #client_socket.close unless client_socket.closed?
+                    @transactions.delete(transaction_id(client_socket))
                     @readmsg = nil
-                    next
+                    $stderr.puts("breaking ...")
+                    break
                   elsif @readmsg.keepalive?
                     $stderr.puts("received keepalive")
                     @readmsg = nil
-                    next
+                    break
                   end
                 end
                 unless @transactions[transaction_id(client_socket)].nil?
                   $stderr.puts("reading from peer socket, writing to client")
+                  if client_socket.closed?
+                    @transactions.delete(transaction_id(client_socket))
+                    break
+                  end
                   @readmsg.write_to_client(client_socket)
                 end
                 @readmsg = nil
@@ -79,7 +95,7 @@ module Gateway
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message
-        finish
+        #finish
         retry
       end
     end
@@ -101,76 +117,10 @@ module Gateway
       end
     end
 
-    def finish
-      delete_closed_client_sockets
-
-      @readmsg ||= Message.new
-      unless @readmsg.id.nil?
-        $stderr.puts("sending fin for #{@readmsg.id}")
-        fin = Message.new(Message::FIN, @readmsg.id)
-        fin.write_to_peer(@peer_socket)
-      end
-
-      loop do
-        begin
-          timeout(0.5) do
-            sockets = IO.select([@peer_socket])
-            @readmsg.read_from_peer(@peer_socket)
-            if @readmsg.read_complete?
-              unless @readmsg.payload?
-                if @readmsg.finack?
-                  $stderr.puts("received finack")
-                  @readmsg = nil
-                  return
-                end
-              end
-            end
-            @readmsg = nil
-          end
-        rescue Timeout::Error
-          $stderr.puts("timeout cleaning socket")
-          return
-        end
-      end
-    end
-
-    def finish_client
-      delete_closed_client_sockets
-      return unless @writemsg
-
-      @writemsg ||= Message.new
-      unless @writemsg.id.nil?
-        $stderr.puts("sending fin for client #{@writemsg.id}")
-        fin = Message.new(Message::FIN, @writemsg.id)
-        fin.write_to_peer(@peer_socket)
-      end
-      
-      loop do
-        begin
-          timeout(0.5) do
-            sockets = IO.select([@peer_socket])
-            @writemsg.read_from_peer(@peer_socket)
-            if @writemsg.read_complete?
-              unless @writemsg.payload?
-                if @writemsg.finack?
-                  $stderr.puts("received finack")
-                  @writemsg = nil
-                  return
-                end
-              end
-            end
-            @writemsg = nil
-          end
-        rescue Timeout::Error
-          $stderr.puts("timeout cleaning socket")
-          return  
-        end       
-      end       
-    end 
-
     def keepalive                                                                    
       keepalive = Message.new(Message::KEEPALIVE, 0)
       keepalive.write_to_peer(@peer_socket)                                          
     end
   end
 end
+
