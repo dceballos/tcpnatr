@@ -5,60 +5,72 @@ module Gateway
   module Common
     KEEPALIVE_TIMEOUT = 20
 
-    def handle_accept(client_socket)
+    def handle_client(client_socket)
       begin
         loop do
-          sockets = IO.select([@peer_socket, client_socket])
+          sockets = IO.select([client_socket])
           timeout(1) do
             sockets[0].each do |socket|
               $stderr.puts("client socket #{client_socket}")
-              if socket != @peer_socket
-                $stderr.puts("reading from client socket")
-                @writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
-                @writemsg.read_from_client(client_socket)
-                @writemsg.write_to_peer(@peer_socket)
+              $stderr.puts("reading from client socket")
+              @writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
+              @writemsg.read_from_client(client_socket)
+              @writemsg.write_to_peer(@peer_socket)
+            end
+           rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+            $stderr.puts e.message
+            finish
+          end
+        end
+      end
+    end
+
+    def handle_peer
+      begin
+        loop do
+          sockets = IO.select([@peer_socket])
+          timeout(1) do
+            sockets[0].each do |socket|
+              $stderr.puts("reading from peer socket")
+              @readmsg ||= Message.new
+              @readmsg.read_from_peer(@peer_socket)
+              $stderr.puts("id from peer is #{@readmsg.id}")
+              unless @transactions[@readmsg.id]
+                client_socket = TCPSocket.new("localhost", port)
+                @transactions[@readmsg.id] = client_socket
               else
-                $stderr.puts("reading from peer socket")
-                @readmsg ||= Message.new
-                @readmsg.read_from_peer(@peer_socket)
-                $stderr.puts("id from peer is #{@readmsg.id}")
-                unless @transactions[@readmsg.id]
-                  client_socket = TCPSocket.new("localhost", port) if client_socket.nil?
-                  @transactions[@readmsg.id] = client_socket
-                else
-                  client_socket = @transactions[@readmsg.id]
-                end
-                $stderr.puts("client socket from message is #{client_socket.to_s}")
-                if @readmsg.read_complete?
-                  unless @readmsg.payload?
-                    if @readmsg.fin?
-                      $stderr.puts("received fin sending finack")
-                      finack = Message.new(Message::FINACK, @readmsg.id)
-                      finack.write_to_peer(@peer_socket)
-                      unless client_socket.closed?
-                        client_socket.close
-                        @transactions.delete(transaction_id(client_socket))
-                      end
-                      @readmsg = nil
-                      return
-                    elsif @readmsg.finack?
-                      $stderr.puts("received finack")
-                      unless client_socket.closed?
-                        client_socket.close
-                        @transactions.delete(transaction_id(client_socket))
-                      end
-                      @readmsg = nil
-                      return
-                    elsif @readmsg.keepalive?
-                      $stderr.puts("received keepalive")
-                      @readmsg = nil
-                      return
+                client_socket = @transactions[@readmsg.id]
+              end
+              $stderr.puts("client socket from message is #{client_socket.to_s}")
+              if @readmsg.read_complete?
+                unless @readmsg.payload?
+                  if @readmsg.fin?
+                    $stderr.puts("received fin sending finack")
+                    finack = Message.new(Message::FINACK, @readmsg.id)
+                    finack.write_to_peer(@peer_socket)
+                    unless client_socket.closed?
+                      client_socket.close
+                      @transactions.delete(transaction_id(client_socket))
                     end
+                    @readmsg = nil
+                    return
+                  elsif @readmsg.finack?
+                    $stderr.puts("received finack")
+                    unless client_socket.closed?
+                      client_socket.close
+                      @transactions.delete(transaction_id(client_socket))
+                    end
+                    @readmsg = nil
+                    return
+                  elsif @readmsg.keepalive?
+                    $stderr.puts("received keepalive")
+                    @readmsg = nil
+                    return
                   end
-                  $stderr.puts("reading from peer socket, writing to client")
-                  @readmsg.write_to_client(client_socket)
-                  @readmsg = nil
                 end
+                $stderr.puts("reading from peer socket, writing to client")
+                @readmsg.write_to_client(client_socket)
+                @readmsg = nil
               end
             end
           end
@@ -90,9 +102,11 @@ module Gateway
       delete_closed_client_sockets
 
       @readmsg ||= Message.new
-      $stderr.puts("sending fin for #{@readmsg.id}")
-      fin = Message.new(Message::FIN, @readmsg.id || 100)
-      fin.write_to_peer(@peer_socket)
+      unless @readmsg.id.nil?
+        $stderr.puts("sending fin for #{@readmsg.id}")
+        fin = Message.new(Message::FIN, @readmsg.id)
+        fin.write_to_peer(@peer_socket)
+      end
 
       loop do
         begin
@@ -118,7 +132,7 @@ module Gateway
     end
 
     def keepalive                                                                    
-      keepalive = Message.new(Message::KEEPALIVE)                                                     
+      keepalive = Message.new(Message::KEEPALIVE, 0)
       keepalive.write_to_peer(@peer_socket)                                          
     end
   end

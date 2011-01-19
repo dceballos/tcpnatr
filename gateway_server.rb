@@ -28,15 +28,18 @@ module Gateway
         begin
           timeout(KEEPALIVE_TIMEOUT) do
             $stderr.puts("waiting for connections")
-            @transactions[new_transaction_id] = server.accept
+            client_socket = server.accept
+            @transactions[new_transaction_id] = client_socket
             $stderr.puts("@transactions #{@transactions.inspect}")
+            Thread.new do
+              handle_accept(client_socket)
+            end
           end
         rescue Timeout::Error
           $stderr.puts("sending keepalive")                                     
           keepalive
           retry
         end
-        handle_accept
       end
     end
 
