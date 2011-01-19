@@ -22,7 +22,7 @@ module Gateway
           end
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
-        $stderr.puts e.message + " bar"
+        $stderr.puts e.message + " foo"
         @transactions.delete(transaction_id(client_socket))
         retry
       end
@@ -41,6 +41,11 @@ module Gateway
               unless @transactions[@readmsg.id]
                 client_socket = TCPSocket.new("localhost", port)
                 @transactions[@readmsg.id] = client_socket
+                if self.is_a?(Gateway::Client)
+                  Thread.new do
+                    handle_client(client_socket)
+                  end
+                end
               else
                 client_socket = @transactions[@readmsg.id]
               end

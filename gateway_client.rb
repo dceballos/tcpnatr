@@ -16,17 +16,14 @@ module Gateway
 
     def start_stunt
       port_client   = PortClient.new("blastmefy.net:2000")
-      @peer_socket  = PeerServer.new(port_client).start("testy", 2007)
+      @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
     end
 
     def start
       $stderr.puts("starting nat traversal")
       start_stunt
 
-      while (true)
-        $stderr.puts("waiting for connections")
-        handle_accept
-      end
+      handle_peer
     end
   end
 end
