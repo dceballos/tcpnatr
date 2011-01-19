@@ -23,8 +23,7 @@ module Gateway
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message + " foo"
-        @transactions.delete(transaction_id(client_socket))
-        retry
+        finish_write
       end
     end
 
@@ -103,6 +102,39 @@ module Gateway
           $stderr.puts("deleting transaction #{key}")
           val.close unless val.closed?
           @transactions.delete(key)
+        end
+      end
+    end
+
+    def finish_client
+      delete_closed_client_sockets
+
+      @writemsg ||= Message.new
+      unless @writemsg.id.nil?
+        $stderr.puts("sending fin for #{@writemsg.id}")
+        fin = Message.new(Message::FIN, @writemsg.id)
+        fin.write_to_peer(@peer_socket)
+      end
+
+      loop do
+        begin
+          timeout(0.5) do
+            sockets = IO.select([@peer_socket])
+            @writemsg.read_from_peer(@peer_socket)
+            if @writemsg.read_complete?
+              unless @writemsg.payload?
+                if @writemsg.finack?
+                  $stderr.puts("received finack")
+                  @writemsg = nil
+                  return
+                end
+              end
+            end
+            @writemsg = nil
+          end
+        rescue Timeout::Error
+          $stderr.puts("timeout cleaning socket")
+          return
         end
       end
     end
