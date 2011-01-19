@@ -61,18 +61,12 @@ class Message
     socket.write(@data[6..-1])
     socket.flush
     $stderr.puts("#{@data[6..-1].size} bytes written to client")
-  rescue Errno::EPIPE => e
-    $stderr.puts("error writing to client")
-    raise e
   end
 
   def read_from_client(socket)
     @data = socket.read_nonblock(4096)
     @size = @data.size + 6
     $stderr.puts("#{@data.size} bytes read from client")
-  rescue Errno::ECONNRESET => e
-    $stderr.puts("client closed")
-    raise e
   end
 
   def write_to_peer(socket)

@@ -8,20 +8,23 @@ module Gateway
     def handle_client(client_socket)
       begin
         loop do
+          break if @transactions[transaction_id(client_socket)].nil?
+          $stderr.puts "waiting for client"
           sockets = IO.select([client_socket])
           timeout(1) do
             sockets[0].each do |socket|
-              $stderr.puts("client socket #{client_socket}")
+              $stderr.puts("client socket #{socket}")
               $stderr.puts("reading from client socket")
               @writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
-              @writemsg.read_from_client(client_socket)
+              @writemsg.read_from_client(socket)
               @writemsg.write_to_peer(@peer_socket)
             end
-           rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
-            $stderr.puts e.message
-            finish
           end
         end
+      rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+        $stderr.puts e.message + " bar"
+        @transactions.delete(transaction_id(client_socket))
+        retry
       end
     end
 
@@ -53,7 +56,7 @@ module Gateway
                       @transactions.delete(transaction_id(client_socket))
                     end
                     @readmsg = nil
-                    return
+                    next
                   elsif @readmsg.finack?
                     $stderr.puts("received finack")
                     unless client_socket.closed?
@@ -61,11 +64,11 @@ module Gateway
                       @transactions.delete(transaction_id(client_socket))
                     end
                     @readmsg = nil
-                    return
+                    next
                   elsif @readmsg.keepalive?
                     $stderr.puts("received keepalive")
                     @readmsg = nil
-                    return
+                    next
                   end
                 end
                 $stderr.puts("reading from peer socket, writing to client")
@@ -78,6 +81,7 @@ module Gateway
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message
         finish
+        retry
       end
     end
 
