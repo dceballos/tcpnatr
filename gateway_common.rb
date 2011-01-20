@@ -32,9 +32,9 @@ module Gateway
           $stderr.puts("sending fin for #{@writemsg.id}")
           fin = Message.new(Message::FIN, @writemsg.id)
           fin.write_to_peer(@peer_socket)
-          client_socket.close
-          @transactions.delete(transaction_id(client_socket))
         end
+        client_socket.close
+        @transactions.delete(transaction_id(client_socket))
       end
     end
 
