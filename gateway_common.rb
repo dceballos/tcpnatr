@@ -12,7 +12,7 @@ module Gateway
           sockets = IO.select([client_socket])
           timeout(1) do
             sockets[0].each do |socket|
-              writemsg = Message.new(Message::PAYLOAD, transaction_id(socket))
+              writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
               writemsg.read_from_client(socket)
               @mutex.synchronize {
                 writemsg.write_to_peer(@peer_socket)
@@ -28,8 +28,6 @@ module Gateway
           @mutex.synchronize {
             fin.write_to_peer(@peer_socket)
           }
-          client_socket.close
-          @transactions.delete(transaction_id(client_socket))
         end
       end
     end
@@ -48,7 +46,7 @@ module Gateway
                 $stderr.puts("reading from peer #{@readmsg.id}")
 
                 if self.is_a?(Gateway::Client)
-                  unless @transactions[@readmsg.id] && @readmsg.id != 256
+                  if @transactions[@readmsg.id].nil? && @readmsg.id != 256
                     client_socket = TCPSocket.new("localhost", port)
                     @transactions[@readmsg.id] = client_socket
                     Thread.new do

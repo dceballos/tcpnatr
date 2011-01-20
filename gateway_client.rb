@@ -18,7 +18,7 @@ module Gateway
 
     def start_stunt
       port_client   = PortClient.new("blastmefy.net:2000")
-      @peer_socket  = PeerServer.new(port_client).start("testy", 2004)
+      @peer_socket  = PeerServer.new(port_client).start("testy", 2002)
     end
 
     def start
@@ -33,5 +33,5 @@ module Gateway
 end
 
 if $0 == __FILE__
-  Gateway::Client.new('localhost', 8080).start
+  Gateway::Client.new('localhost', 3001).start
 end
