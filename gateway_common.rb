@@ -18,7 +18,9 @@ module Gateway
               @writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
               @writemsg.read_from_client(socket)
               $stderr.puts("writing to peer for #{@writemsg.id}")
-              @writemsg.write_to_peer(@peer_socket)
+              @mutex.synchronize {
+                @writemsg.write_to_peer(@peer_socket)
+              }
               $stderr.puts("wrote #{@writemsg.id} to peer")
             end
           end
@@ -26,11 +28,13 @@ module Gateway
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         return if @transactions[transaction_id(client_socket)].nil?
         $stderr.puts e.message + " foo"
-        $stderr.puts("sending fin for #{@writemsg.id}")
-        fin = Message.new(Message::FIN, @writemsg.id)
-        fin.write_to_peer(@peer_socket)
-        client_socket.close
-        #@transactions.delete(transaction_id(client_socket))
+        if self.is_a?(Gateway::Server)
+          $stderr.puts("sending fin for #{@writemsg.id}")
+          fin = Message.new(Message::FIN, @writemsg.id)
+          fin.write_to_peer(@peer_socket)
+          client_socket.close
+          @transactions.delete(transaction_id(client_socket))
+        end
       end
     end
 
@@ -62,7 +66,9 @@ module Gateway
                   if @readmsg.fin?
                     $stderr.puts("received fin for #{@readmsg.id} sending finack")
                     finack = Message.new(Message::FINACK, @readmsg.id)
-                    finack.write_to_peer(@peer_socket)
+                    @mutex.synchronize {
+                      finack.write_to_peer(@peer_socket)
+                    }
                     #client_socket.close unless client_socket.closed?
                     @transactions.delete(transaction_id(client_socket))
                     @readmsg = nil
@@ -119,7 +125,9 @@ module Gateway
 
     def keepalive                                                                    
       keepalive = Message.new(Message::KEEPALIVE, 0)
-      keepalive.write_to_peer(@peer_socket)                                          
+      @mutex.synchronize {
+        keepalive.write_to_peer(@peer_socket)
+      }
     end
   end
 end

@@ -2,6 +2,8 @@ require 'timeout'
 require 'peer_server'
 require 'message'
 require 'gateway_common'
+require 'gateway_server'
+require 'thread'
 
 module Gateway
   class Client
@@ -16,10 +18,12 @@ module Gateway
 
     def start_stunt
       port_client   = PortClient.new("blastmefy.net:2000")
-      @peer_socket  = PeerServer.new(port_client).start("testy", 2005)
+      @peer_socket  = PeerServer.new(port_client).start("testy", 2004)
     end
 
     def start
+      @mutex = Mutex.new
+
       $stderr.puts("starting nat traversal")
       start_stunt
 
@@ -29,5 +33,5 @@ module Gateway
 end
 
 if $0 == __FILE__
-  Gateway::Client.new('localhost', 3001).start
+  Gateway::Client.new('localhost', 80).start
 end
