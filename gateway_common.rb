@@ -27,14 +27,16 @@ module Gateway
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         return if @transactions[transaction_id(client_socket)].nil?
-        $stderr.puts e.message + " foo"
+        $stderr.puts e.message
         if self.is_a?(Gateway::Server)
           $stderr.puts("sending fin for #{@writemsg.id}")
           fin = Message.new(Message::FIN, @writemsg.id)
-          fin.write_to_peer(@peer_socket)
+          @mutex.synchronize {
+            fin.write_to_peer(@peer_socket)
+          }
+          client_socket.close
+          @transactions.delete(transaction_id(client_socket))
         end
-        client_socket.close
-        @transactions.delete(transaction_id(client_socket))
       end
     end
 
