@@ -33,5 +33,5 @@ module Gateway
 end
 
 if $0 == __FILE__
-  Gateway::Client.new('localhost', 80).start
+  Gateway::Client.new('localhost', 8080).start
 end

@@ -16,7 +16,7 @@ module Gateway
 
     def start_stunt
       port_client  = PortClient.new("blastmefy.net:2000")
-      @peer_socket = Peer.new(port_client).start("testy", 2003)
+      @peer_socket = Peer.new(port_client).start("testy", 2004)
     end
 
     def start
@@ -39,6 +39,7 @@ module Gateway
             client_socket = server.accept
             @transactions[new_transaction_id] = client_socket
             $stderr.puts("new client from accept #{@transactions.inspect}")
+
             Thread.new do
               handle_client(client_socket)
             end
@@ -53,7 +54,7 @@ module Gateway
 
     def new_transaction_id
       loop do
-        nid = rand(256)
+        nid = rand(255)
         return nid unless @transactions.has_key?(nid)
       end
     end
