@@ -22,13 +22,12 @@ module Gateway
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         return if @transactions[transaction_id(client_socket)].nil?
-        $stderr.puts e.message
-        if self.is_a?(Gateway::Server)
-          fin = Message.new(Message::FIN, transaction_id(client_socket))
-          @mutex.synchronize {
-            fin.write_to_peer(@peer_socket)
-          }
-        end
+        $stderr.puts e.message + " c "
+
+        fin = Message.new(Message::FIN, transaction_id(client_socket))
+        @mutex.synchronize {
+          fin.write_to_peer(@peer_socket)
+        }
         client_socket.close
         @transactions.delete(transaction_id(client_socket))
       end
@@ -41,7 +40,6 @@ module Gateway
           timeout(1) do
             sockets[0].each do |socket|
               @readmsg ||= Message.new
-              $stderr.puts("@readmsg id is #{@readmsg.object_id}")
               @readmsg.read_from_peer(@peer_socket)
 
               if @readmsg.read_complete?
@@ -94,8 +92,8 @@ module Gateway
             end
           end
         end
-      rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
-        $stderr.puts e.message
+      rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+        $stderr.puts e.message + " s "
         retry
       end
     end
