@@ -49,7 +49,9 @@ module Gateway
             sockets[0].each do |socket|
               $stderr.puts("reading from peer socket")
               @readmsg ||= Message.new
-              @readmsg.read_from_peer(@peer_socket)
+              @mutex.synchronize {
+                @readmsg.read_from_peer(@peer_socket)
+              }
               $stderr.puts("id from peer is #{@readmsg.id}")
               if self.is_a?(Gateway::Client)
                 unless @transactions[@readmsg.id] && @readmsg.id != 0
@@ -94,8 +96,9 @@ module Gateway
                     @transactions.delete(transaction_id(client_socket))
                     break
                   end
-  
-                  @readmsg.write_to_client(client_socket)
+                  @mutex.synchronize { 
+                    @readmsg.write_to_client(client_socket)
+                  }
                 end
                 @readmsg = nil
               end
