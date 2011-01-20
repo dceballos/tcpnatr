@@ -8,7 +8,7 @@ module Gateway
     def handle_client(client_socket)
       begin
         loop do
-          break if @transactions[transaction_id(client_socket)].nil? || client_socket.closed?
+          break if @transactions[transaction_id(client_socket)].nil?
           sockets = IO.select([client_socket])
           timeout(1) do
             sockets[0].each do |socket|
@@ -29,6 +29,8 @@ module Gateway
             fin.write_to_peer(@peer_socket)
           }
         end
+        client_socket.close
+        @transactions.delete(transaction_id(client_socket))
       end
     end
 
