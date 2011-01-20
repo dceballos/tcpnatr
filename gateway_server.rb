@@ -2,6 +2,7 @@ require 'timeout'
 require 'peer'
 require 'gateway_common'
 require 'gateway_client'
+require 'thread'
 
 module Gateway
   class Server
@@ -25,6 +26,8 @@ module Gateway
       @server = TCPServer.new(port)
       $stderr.puts("gateway server started on port #{port}")
 
+      @mutex = Mutex.new
+
       Thread.new do
         handle_peer
       end
@@ -35,7 +38,7 @@ module Gateway
             $stderr.puts("waiting for connections")
             client_socket = server.accept
             @transactions[new_transaction_id] = client_socket
-            $stderr.puts("@transactions #{@transactions.inspect}")
+            $stderr.puts("new client from accept #{@transactions.inspect}")
             Thread.new do
               handle_client(client_socket)
             end

@@ -4,7 +4,7 @@ require 'zlib'
 module Gateway
   module Common
     KEEPALIVE_TIMEOUT = 20
-
+    
     def handle_client(client_socket)
       begin
         loop do
@@ -66,7 +66,7 @@ module Gateway
                   if @readmsg.fin?
                     $stderr.puts("received fin for #{@readmsg.id} sending finack")
                     finack = Message.new(Message::FINACK, @readmsg.id)
-                    @mutex.synchronize {
+                    @mutex.synchronize {  
                       finack.write_to_peer(@peer_socket)
                     }
                     #client_socket.close unless client_socket.closed?
@@ -92,6 +92,7 @@ module Gateway
                     @transactions.delete(transaction_id(client_socket))
                     break
                   end
+  
                   @readmsg.write_to_client(client_socket)
                 end
                 @readmsg = nil
