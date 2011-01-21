@@ -3,6 +3,7 @@ require 'peer'
 require 'gateway_common'
 require 'gateway_client'
 require 'thread'
+require 'client_request'
 
 module Gateway
   class Server
@@ -10,8 +11,9 @@ module Gateway
     attr_reader(:port, :peer_socket, :server)
 
     def initialize(port)
-      @port = port
-      @transactions = {}
+      @port     = port
+      @requests = []
+      @mutex    = Mutex.new
     end
 
     def start_stunt
@@ -26,8 +28,6 @@ module Gateway
       @server = TCPServer.new(port)
       $stderr.puts("gateway server started on port #{port}")
 
-      @mutex = Mutex.new
-
       Thread.new do
         handle_peer
       end
@@ -37,25 +37,15 @@ module Gateway
           timeout(KEEPALIVE_TIMEOUT) do
             $stderr.puts("waiting for connections")
             client_socket = server.accept
-            @transactions[new_transaction_id] = client_socket
-            $stderr.puts("new client from accept #{@transactions.inspect}")
-
             Thread.new do
-              handle_client(client_socket)
+              handle_client(ClientRequest.new(client_socket))
             end
           end
         rescue Timeout::Error
-          $stderr.puts("sending keepalive")                                     
+          $stderr.puts("sending keepalive")
           keepalive
           retry
         end
-      end
-    end
-
-    def new_transaction_id
-      loop do
-        nid = rand(255)
-        return nid unless @transactions.has_key?(nid)
       end
     end
   end

@@ -1,19 +1,18 @@
 require 'message'
-require 'zlib'
 
 module Gateway
   module Common
     KEEPALIVE_TIMEOUT = 20
-    
-    def handle_client(client_socket)
+
+    def handle_client(client_request)
+      @requests[client_request.id] = client_request
       begin
         loop do
-          break if @transactions[transaction_id(client_socket)].nil?
-          sockets = IO.select([client_socket])
+          sockets = IO.select([client_request.socket])
           timeout(1) do
             sockets[0].each do |socket|
-              writemsg = Message.new(Message::PAYLOAD, transaction_id(socket)) 
-              writemsg.read_from_client(socket)
+              writemsg = Message.new(Message::PAYLOAD, client_request.id)
+              writemsg.read_from_client(client_request.socket)
               @mutex.synchronize {
                 writemsg.write_to_peer(@peer_socket)
               }
@@ -21,15 +20,13 @@ module Gateway
           end
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
-        return if @transactions[transaction_id(client_socket)].nil?
-        $stderr.puts e.message + " c "
-
-        fin = Message.new(Message::FIN, transaction_id(client_socket))
+        $stderr.puts e.message
+        fin = Message.new(Message::FIN, client_request.id)
         @mutex.synchronize {
           fin.write_to_peer(@peer_socket)
         }
-        client_socket.close
-        @transactions.delete(transaction_id(client_socket))
+        client_request.socket.close
+        @requests.delete(client_request.id)
       end
     end
 
@@ -40,34 +37,33 @@ module Gateway
           timeout(1) do
             sockets[0].each do |socket|
               @readmsg ||= Message.new
-              @readmsg.read_from_peer(@peer_socket)
+              @readmsg.read_from_peer(socket)
 
               if @readmsg.read_complete?
                 $stderr.puts("reading from peer #{@readmsg.id}")
 
                 if self.is_a?(Gateway::Client)
-                  if @transactions[@readmsg.id].nil? && @readmsg.id != 256
-                    client_socket = TCPSocket.new("localhost", port)
-                    @transactions[@readmsg.id] = client_socket
+                  unless @requests[@readmsg.id] && @readmsg.payload?
+                    client_socket          = TCPSocket.new("localhost", port)
+                    @requests[@readmsg.id] = ClientRequest.new(client_socket)
                     Thread.new do
-                      handle_client(client_socket)
+                      handle_client(@requests[@readmsg.id])
                     end
                   end
                 end
 
-                client_socket = @transactions[@readmsg.id]
-
+                client_request = @requests[@readmsg.id]
                 unless @readmsg.payload?
                   if @readmsg.fin?
                     finack = Message.new(Message::FINACK, @readmsg.id)
                     @mutex.synchronize {  
                       finack.write_to_peer(@peer_socket)
                     }
-                    @transactions.delete(transaction_id(client_socket))
+                    @requests.delete(@readmsg.id)
                     @readmsg = nil
                     break
                   elsif @readmsg.finack?
-                    @transactions.delete(transaction_id(client_socket))
+                    @requests.delete(@readmsg.id)
                     @readmsg = nil
                     break
                   elsif @readmsg.keepalive?
@@ -76,14 +72,14 @@ module Gateway
                   end
                 end
 
-                unless @transactions[transaction_id(client_socket)].nil?
-                  if client_socket.closed?
-                    @transactions.delete(transaction_id(client_socket))
+                if @requests[@readmsg.id]
+                  if client_request.socket.closed?
+                    @requests.delete(@readmsg.id)
                     @readmsg = nil
                     break
                   end
-                  $stderr.puts("writing to client #{@readmsg.id} <#{transaction_id(client_socket)}>")
-                  @readmsg.write_to_client(client_socket)
+                  $stderr.puts("writing request #{@readmsg.id} to client")
+                  @readmsg.write_to_client(client_request.socket)
                 end
                 @readmsg = nil
               else
@@ -93,16 +89,9 @@ module Gateway
           end
         end
       rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
-        $stderr.puts e.message + " s "
+        $stderr.puts e.message
         retry
       end
-    end
-
-    def transaction_id(socket)
-      @transactions.each_pair do |key,val|
-        return key if val == socket
-      end
-      nil
     end
 
     def keepalive                                                                    
