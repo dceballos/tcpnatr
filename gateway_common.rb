@@ -86,9 +86,9 @@ module Gateway
             end
           end
         end
-      rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
+      rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message
-        retry
+        exit
       end
     end
 
