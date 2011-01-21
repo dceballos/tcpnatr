@@ -1,3 +1,4 @@
+require 'client_request'
 require 'timeout'
 require 'peer_server'
 require 'message'
@@ -11,22 +12,20 @@ module Gateway
     attr_reader(:port, :host, :peer_socket, :client)
 
     def initialize(host, port)
-      @host = host
-      @port = port
-      @transactions = {}
+      @host     = host
+      @port     = port
+      @mutex    = Mutex.new
+      @requests = {}
     end
 
     def start_stunt
       port_client   = PortClient.new("blastmefy.net:2000")
-      @peer_socket  = PeerServer.new(port_client).start("testy", 2002)
+      @peer_socket  = PeerServer.new(port_client).start("testy", 2004)
     end
 
     def start
-      @mutex = Mutex.new
-
       $stderr.puts("starting nat traversal")
       start_stunt
-
       handle_peer
     end
   end

@@ -12,7 +12,7 @@ module Gateway
 
     def initialize(port)
       @port     = port
-      @requests = []
+      @requests = {}
       @mutex    = Mutex.new
     end
 

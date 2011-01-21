@@ -1,5 +1,3 @@
-require 'message'
-
 module Gateway
   module Common
     KEEPALIVE_TIMEOUT = 20
@@ -40,12 +38,12 @@ module Gateway
               @readmsg.read_from_peer(socket)
 
               if @readmsg.read_complete?
-                $stderr.puts("reading from peer #{@readmsg.id}")
+                $stderr.puts("read message #{@readmsg.id}")
 
                 if self.is_a?(Gateway::Client)
-                  unless @requests[@readmsg.id] && @readmsg.payload?
+                  if @requests[@readmsg.id].nil? && @readmsg.payload?
                     client_socket          = TCPSocket.new("localhost", port)
-                    @requests[@readmsg.id] = ClientRequest.new(client_socket)
+                    @requests[@readmsg.id] = ClientRequest.new(@readmsg.id, client_socket)
                     Thread.new do
                       handle_client(@requests[@readmsg.id])
                     end
@@ -72,7 +70,7 @@ module Gateway
                   end
                 end
 
-                if @requests[@readmsg.id]
+                unless @requests[@readmsg.id].nil?
                   if client_request.socket.closed?
                     @requests.delete(@readmsg.id)
                     @readmsg = nil
@@ -91,6 +89,13 @@ module Gateway
       rescue Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message
         retry
+      end
+    end
+
+    def new_request_id
+      loop do
+        n = rand(255)
+        return n unless @requests.has_key?(n)
       end
     end
 
