@@ -42,7 +42,7 @@ module Gateway
 
                 if self.is_a?(Gateway::Client)
                   if @requests[@readmsg.id].nil? && @readmsg.payload?
-                    client_socket          = TCPSocket.new("localhost", port)
+                    client_socket          = TCPSocket.new(host, port)
                     @requests[@readmsg.id] = ClientRequest.new(@readmsg.id, client_socket)
                     Thread.new do
                       handle_client(@requests[@readmsg.id])
