@@ -38,7 +38,7 @@ module Gateway
             $stderr.puts("waiting for connections")
             client_socket = server.accept
             Thread.new do
-              handle_client(ClientRequest.new(client_socket))
+              handle_client(ClientRequest.new(new_request_id, client_socket))
             end
           end
         rescue Timeout::Error
