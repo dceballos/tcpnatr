@@ -94,13 +94,13 @@ module Gateway
 
     def new_request_id
       loop do
-        n = rand(255)
+        n = rand(2**16)
         return n unless @requests.has_key?(n)
       end
     end
 
     def keepalive                                                                    
-      keepalive = Message.new(Message::KEEPALIVE, 256)
+      keepalive = Message.new(Message::KEEPALIVE, 0)
       @mutex.synchronize {
         keepalive.write_to_peer(@peer_socket)
       }
