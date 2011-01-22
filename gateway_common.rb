@@ -34,11 +34,18 @@ module Gateway
           sockets = IO.select([@peer_socket])
           timeout(1) do
             sockets[0].each do |socket|
+
+              # Read packet from peer and create new message or complete
+              # previous unfinished packet
+
               @readmsg ||= Message.new
               @readmsg.read_from_peer(socket)
 
               if @readmsg.read_complete?
                 $stderr.puts("read message #{@readmsg.id}")
+
+                # If we are a Gateway::Client instance, create socket
+                # to HTTP server and handle it in a new thread
 
                 if self.is_a?(Gateway::Client)
                   if @requests[@readmsg.id].nil? && @readmsg.payload?
@@ -50,7 +57,8 @@ module Gateway
                   end
                 end
 
-                client_request = @requests[@readmsg.id]
+                # Handle message if it doesn't contain payload data
+
                 unless @readmsg.payload?
                   if @readmsg.fin?
                     finack = Message.new(Message::FINACK, @readmsg.id)
@@ -70,7 +78,10 @@ module Gateway
                   end
                 end
 
+                # Write message to client socket
+
                 unless @requests[@readmsg.id].nil?
+                  client_request = @requests[@readmsg.id]
                   if client_request.socket.closed?
                     @requests.delete(@readmsg.id)
                     @readmsg = nil
@@ -80,15 +91,14 @@ module Gateway
                   @readmsg.write_to_client(client_request.socket)
                 end
                 @readmsg = nil
-              else
-                $stderr.puts("read not complete")
               end
             end
           end
         end
       rescue EOFError, Errno::ECONNRESET, IOError, Errno::EAGAIN, Timeout::Error => e
         $stderr.puts e.message
-        exit
+        exit if @peer_socket.eof?
+        retry
       end
     end
 
